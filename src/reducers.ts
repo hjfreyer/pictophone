@@ -26,7 +26,7 @@ export function room(state: states.Room = initalRoom,
       }
       let next: states.Room = {
         ...state,
-        players: {...state.players, [action.playerId]: {}},
+        players: { ...state.players, [action.playerId]: {} },
       };
       return [next, status.ok(), [playerAction]];
     }

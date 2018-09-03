@@ -5,71 +5,71 @@ import * as states from './states';
 import * as status from './status';
 
 export type RoomHistory = {
-    snapshots: RoomSnapshot[];
+  snapshots: RoomSnapshot[];
 };
 
 export type RoomSnapshot = {
-    action: actions.RoomAction;
-    state: states.Room;
+  action: actions.RoomAction;
+  state: states.Room;
 };
 
 export type PlayerHistory = {
-    snapshots: PlayerSnapshot[];
+  snapshots: PlayerSnapshot[];
 };
 
 export type PlayerSnapshot = {
-    action: actions.PlayerAction;
-    state: states.Player;
+  action: actions.PlayerAction;
+  state: states.Player;
 };
 
 export interface Datastore {
-    getRoomState(id: string): states.Room | undefined;
-    getPlayerState(id: string): states.Player | undefined;
+  getRoomState(id: string): states.Room | undefined;
+  getPlayerState(id: string): states.Player | undefined;
 
-    appendRoomSnapshot(
-        id: string, snpashot: RoomSnapshot): void
-    appendPlayerSnapshot(
-        id: string, snpashot: PlayerSnapshot): void
+  appendRoomSnapshot(
+    id: string, snpashot: RoomSnapshot): void
+  appendPlayerSnapshot(
+    id: string, snpashot: PlayerSnapshot): void
 };
 
 export function processAction(ds: Datastore, action: actions.Action): status.Status {
-    switch (action.type) {
-        case 'CREATE_ROOM':
-        case 'JOIN_ROOM':
-            return processRoomAction(ds, action);
-        case 'PLAYER_ENTERS_ROOM':
-            return processPlayerAction(ds, action);
-    }
+  switch (action.type) {
+    case 'CREATE_ROOM':
+    case 'JOIN_ROOM':
+      return processRoomAction(ds, action);
+    case 'PLAYER_ENTERS_ROOM':
+      return processPlayerAction(ds, action);
+  }
 }
 
 function processRoomAction(ds: Datastore, action: actions.RoomAction): status.Status {
-    const currentState = ds.getRoomState(action.roomId);
-    const [nextState, s, nextActions] = reducers.room(currentState, action);
+  const currentState = ds.getRoomState(action.roomId);
+  const [nextState, s, nextActions] = reducers.room(currentState, action);
+  if (!status.isOk(s)) {
+    return s;
+  }
+  ds.appendRoomSnapshot(action.roomId, action, nextState);
+  for (const a of nextActions) {
+    const s = processAction(ds, a);
     if (!status.isOk(s)) {
-        return s;
+      return s;
     }
-    ds.appendRoomSnapshot(action.roomId, action, nextState);
-    for (const a of nextActions) {
-        const s = processAction(ds, a);
-        if (!status.isOk(s)) {
-            return s;
-        }
-    }
-    return status.ok();
+  }
+  return status.ok();
 }
 
 function processPlayerAction(ds: Datastore, action: actions.PlayerAction): status.Status {
-    const currentState = ds.getPlayerState(action.playerId);
-    const [nextState, s, nextActions] = reducers.player(currentState, action);
+  const currentState = ds.getPlayerState(action.playerId);
+  const [nextState, s, nextActions] = reducers.player(currentState, action);
+  if (!status.isOk(s)) {
+    return s;
+  }
+  ds.appendPlayerSnapshot(action.playerId, action, nextState);
+  for (const a of nextActions) {
+    const s = processAction(ds, a);
     if (!status.isOk(s)) {
-        return s;
+      return s;
     }
-    ds.appendPlayerSnapshot(action.playerId, action, nextState);
-    for (const a of nextActions) {
-        const s = processAction(ds, a);
-        if (!status.isOk(s)) {
-            return s;
-        }
-    }
-    return status.ok();
+  }
+  return status.ok();
 }

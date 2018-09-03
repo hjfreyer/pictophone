@@ -1,7 +1,7 @@
 
 export interface Room {
   created: boolean;
-  players: {[id: string]: {}};
+  players: { [id: string]: {} };
 }
 
 export interface Player {

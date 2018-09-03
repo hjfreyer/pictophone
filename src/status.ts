@@ -10,7 +10,7 @@ export function isOk(s: Status): boolean {
 }
 
 export function ok(): Status {
-  return {type: 'STATUS', code: 'OK'};
+  return { type: 'STATUS', code: 'OK' };
 }
 
 export function notFound(): Status {
