@@ -1,7 +1,7 @@
 
 export interface Status {
   type: 'STATUS';
-  code: 'OK' | 'ALREADY_EXISTS' | 'NOT_FOUND';
+  code: 'OK' | 'ALREADY_EXISTS' | 'NOT_FOUND' | 'INTERNAL';
   message?: string;
 }
 
@@ -19,4 +19,8 @@ export function notFound(): Status {
 
 export function alreadyExists(): Status {
   return { type: 'STATUS', code: 'ALREADY_EXISTS' };
+}
+
+export function internal(): Status {
+  return { type: 'STATUS', code: 'INTERNAL' };
 }
