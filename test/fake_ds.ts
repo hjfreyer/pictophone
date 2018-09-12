@@ -1,22 +1,23 @@
-// import * as actions from '../src/actions';
+import * as actions from '../src/actions';
 // import * as controllers from '../src/controller';
 // import * as states from '../src/states';
 import * as status from '../src/status';
 import * as streams from '../src/streams';
+import * as states from '../src/states';
 
-function idToStr(id: streams.Id<streams.StreamKinds>): string {
+function idToStr(id: states.Id<states.StreamKinds>): string {
   return id.kind + '/' + id.id;
 }
 
 export class Datastore implements streams.DB {
   data: Map<string, any> = new Map();
 
-  get<K extends streams.StreamKinds>(id: streams.Id<K>): streams.StateMap[K] | null {
+  get<K extends states.StreamKinds>(id: states.Id<K>): states.StateMap[K] | null {
     const res = this.data.get(idToStr(id)) || null;
-    return res as (streams.StateMap[K] | null);
+    return res as (states.StateMap[K] | null);
   }
 
-  update(action: streams.Action, updates: streams.Update<streams.State>[]): status.Status {
+  update(action: actions.Action, updates: states.Update<states.State>[]): status.Status {
     for (const update of updates) {
       this.data.set(idToStr(update.id), update.state);
     }

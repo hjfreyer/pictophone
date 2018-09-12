@@ -1,65 +1,15 @@
-//import * as actions from './actions';
+import * as actions from './actions';
 import * as status from './status';
-
-
-export const JoinRoom = 'JOIN_ROOM';
-type JoinRoom = typeof JoinRoom;
-
-export type ActionMap = {
-  [JoinRoom]: JoinRoomAction;
-}
-
-type ActionKind = keyof ActionMap;
-export type Action = ActionMap[ActionKind];
-
-type JoinRoomAction = {
-  kind: JoinRoom;
-  playerId: string;
-  roomId: string;
-};
-
-export const Room = 'ROOM';
-export type Room = typeof Room;
-export const Player = 'PLAYER';
-export type Player = typeof Player;
-
-export type StateMap = {
-  [Room]: RoomState;
-  [Player]: PlayerState;
-}
-
-export type State = StateMap[keyof StateMap];
-
-export type StreamKinds = keyof StateMap;
-
-export type RoomState = {
-  kind: Room;
-  players: string[];
-};
-
-export type PlayerState = {
-  kind: Player;
-  roomId: string | null;
-};
-
-export type Id<K> = {
-  kind: K;
-  id: string;
-};
-
-export type Update<S extends State> = {
-  id: Id<S['kind']>;
-  state: S;
-}
+import * as states from './states';
 
 
 export interface DB {
-  get<K extends StreamKinds>(id: Id<K>): StateMap[K] | null;
-  update(action: Action, updates: Update<State>[]): status.Status;
+  get<K extends states.StreamKinds>(id: states.Id<K>): states.StateMap[K] | null;
+  update(action: actions.Action, updates: states.Update<states.State>[]): status.Status;
 }
 
-type IdBundle = { [kind: string]: Id<StreamKinds> };
-type StateBundle = { [kind: string]: State };
+type IdBundle = { [kind: string]: states.Id<states.StreamKinds> };
+type StateBundle = { [kind: string]: states.State };
 
 type GetMore = {
   kind: 'GET_MORE';
@@ -68,7 +18,7 @@ type GetMore = {
 
 type Commit = {
   kind: 'COMMIT';
-  action: Action;
+  action: actions.Action;
   updates: StateBundle;
 };
 
@@ -80,14 +30,14 @@ type Error = {
 type ActorResult = GetMore | Commit | Error;
 type Actor = (state: StateBundle) => ActorResult;
 
-function mkDefault<K extends StreamKinds>(k: K): StateMap[K] {
-  switch (k as StreamKinds) {
-    case Room: return { kind: Room, players: [] }
-    case Player: return { kind: Player, roomId: null }
+function mkDefault<K extends states.StreamKinds>(k: K): states.StateMap[K] {
+  switch (k as states.StreamKinds) {
+    case states.Room: return { kind: states.Room, players: [] }
+    case states.Player: return { kind: states.Player, roomId: null }
   }
 }
 
-function getAll(db: DB, ids: IdBundle): { [key: string]: State } {
+function getAll(db: DB, ids: IdBundle): { [key: string]: states.State } {
   const res: StateBundle = {};
 
   for (const key in ids) {
@@ -114,7 +64,7 @@ export function apply(db: DB, actor: Actor): status.Status {
         return res.status;
 
       case 'COMMIT': {
-        const updates: Update<State>[] = [];
+        const updates: states.Update<states.State>[] = [];
         for (let key in lastRequest!) {
           updates.push({
             id: lastRequest![key],
@@ -131,49 +81,42 @@ function addUnique(arr: string[], val: string): string[] {
   return arr.indexOf(val) == -1 ? [...arr, val] : arr;
 }
 
-function roomId(id: string): Id<Room> {
-  return { kind: Room, id };
-}
-
-function playerId(id: string): Id<Player> {
-  return { kind: Player, id };
-}
-
-export function getActor(a: Action): Actor {
+export function getActor(a: actions.Action): Actor {
   switch (a.kind) {
-    case JoinRoom: return (states: StateBundle) => joinRoomAction(a, states);
+    case actions.JOIN_ROOM:
+      return (bundle: StateBundle) => joinRoomAction(a, bundle);
   }
 }
 
-function joinRoomAction(a: JoinRoomAction, states: StateBundle): ActorResult {
-  if (!('player' in states)) {
+function joinRoomAction(a: actions.JoinRoomAction, bundle: StateBundle): ActorResult {
+  if (!('player' in bundle)) {
     return {
       kind: 'GET_MORE',
-      ids: { player: playerId(a.playerId), newRoom: roomId(a.roomId) },
+      ids: { player: states.playerId(a.playerId), newRoom: states.roomId(a.roomId) },
     }
   }
   const res: StateBundle = {};
 
-  const player = states.player as PlayerState;
+  const player = bundle.player as states.PlayerState;
 
   if (player.roomId == a.roomId) {
     // Already in room.
     return { kind: 'ERROR', status: status.ok() };
   }
 
-  if (player.roomId != null && !('oldRoom' in states)) {
+  if (player.roomId != null && !('oldRoom' in bundle)) {
     return {
       kind: 'GET_MORE',
       ids: {
-        player: playerId(a.playerId),
-        newRoom: roomId(a.roomId),
-        oldRoom: roomId(player.roomId),
+        player: states.playerId(a.playerId),
+        newRoom: states.roomId(a.roomId),
+        oldRoom: states.roomId(player.roomId),
       },
     }
   }
 
-  const oldRoom = states.oldRoom as (RoomState | null);
-  const newRoom = states.newRoom as RoomState;
+  const oldRoom = bundle.oldRoom as (states.RoomState | null);
+  const newRoom = bundle.newRoom as states.RoomState;
 
   if (oldRoom != null) {
     const playerIdx = oldRoom.players.indexOf(a.playerId);
