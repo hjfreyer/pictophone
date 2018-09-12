@@ -4,6 +4,7 @@ import * as fake_ds from './fake_ds';
 import * as status from '../src/status';
 import * as streams from '../src/streams';
 import * as states from '../src/states';
+import { roomId, playerId } from '../src/states';
 
 function set(...ts: string[]): { [v: string]: {} } {
   const res: { [v: string]: {} } = {};
@@ -11,14 +12,6 @@ function set(...ts: string[]): { [v: string]: {} } {
     res[t] = {};
   }
   return res;
-}
-
-function roomId(id: string): states.Id<states.ROOM> {
-  return { kind: states.ROOM, id };
-}
-
-function playerId(id: string): states.Id<states.PLAYER> {
-  return { kind: states.PLAYER, id };
 }
 
 describe('basic room creation and joining', () => {
@@ -36,27 +29,7 @@ describe('basic room creation and joining', () => {
   const doAction = (a: actions.Action) => streams.apply(ds, streams.getActor(a));
 
   test('join creates lazily', () => {
-    expect(doAction({
-      kind: 'JOIN_ROOM',
-      roomId: 'r1',
-      playerId: 'p1'
-    })).toEqual(status.ok());
-    expect(ds.get(roomId('r1'))).toEqual({
-      kind: states.ROOM,
-      players: ['p1'],
-    });
-    expect(ds.get(playerId('p1'))).toEqual({
-      kind: states.PLAYER,
-      roomId: 'r1'
-    });
-  });
-
-  test('join creates lazily', () => {
-    expect(doAction({
-      kind: 'JOIN_ROOM',
-      roomId: 'r1',
-      playerId: 'p1'
-    })).toEqual(status.ok());
+    expect(doAction(actions.joinRoom('p1', 'r1'))).toEqual(status.ok());
     expect(ds.get(roomId('r1'))).toEqual({
       kind: states.ROOM,
       players: ['p1'],
@@ -68,16 +41,9 @@ describe('basic room creation and joining', () => {
   });
 
   test('multiple players join', () => {
-    expect(doAction({
-      kind: 'JOIN_ROOM',
-      roomId: 'r1',
-      playerId: 'p1'
-    })).toEqual(status.ok());
-    expect(doAction({
-      kind: 'JOIN_ROOM',
-      roomId: 'r1',
-      playerId: 'p2'
-    })).toEqual(status.ok());
+    expect(doAction(actions.joinRoom('p1', 'r1'))).toEqual(status.ok());
+    expect(doAction(actions.joinRoom('p2', 'r1'))).toEqual(status.ok());
+
     expect(ds.get(roomId('r1'))).toEqual({
       kind: states.ROOM,
       players: ['p1', 'p2'],
@@ -89,16 +55,9 @@ describe('basic room creation and joining', () => {
   });
 
   test('join idempotent', () => {
-    expect(doAction({
-      kind: 'JOIN_ROOM',
-      roomId: 'r1',
-      playerId: 'p1'
-    })).toEqual(status.ok());
-    expect(doAction({
-      kind: 'JOIN_ROOM',
-      roomId: 'r1',
-      playerId: 'p1'
-    })).toEqual(status.ok());
+    expect(doAction(actions.joinRoom('p1', 'r1'))).toEqual(status.ok());
+    expect(doAction(actions.joinRoom('p1', 'r1'))).toEqual(status.ok());
+
     expect(ds.get(roomId('r1'))).toEqual({
       kind: states.ROOM,
       players: ['p1'],
@@ -110,16 +69,9 @@ describe('basic room creation and joining', () => {
   });
 
   test('move between rooms', () => {
-    expect(doAction({
-      kind: 'JOIN_ROOM',
-      roomId: 'r1',
-      playerId: 'p1'
-    })).toEqual(status.ok());
-    expect(doAction({
-      kind: 'JOIN_ROOM',
-      roomId: 'r2',
-      playerId: 'p1'
-    })).toEqual(status.ok());
+    expect(doAction(actions.joinRoom('p1', 'r1'))).toEqual(status.ok());
+    expect(doAction(actions.joinRoom('p1', 'r2'))).toEqual(status.ok());
+
     expect(ds.get(roomId('r1'))).toEqual({
       kind: states.ROOM,
       players: [],
@@ -133,4 +85,5 @@ describe('basic room creation and joining', () => {
       roomId: 'r2'
     });
   });
+
 });
