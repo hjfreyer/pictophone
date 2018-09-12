@@ -1,6 +1,5 @@
 
 import * as actions from '../src/actions';
-// import * as controller from '../src/controller';
 import * as fake_ds from './fake_ds';
 import * as status from '../src/status';
 import * as streams from '../src/streams';
@@ -14,12 +13,12 @@ function set(...ts: string[]): { [v: string]: {} } {
   return res;
 }
 
-function roomId(id: string): states.Id<states.Room> {
-  return { kind: states.Room, id };
+function roomId(id: string): states.Id<states.ROOM> {
+  return { kind: states.ROOM, id };
 }
 
-function playerId(id: string): states.Id<states.Player> {
-  return { kind: states.Player, id };
+function playerId(id: string): states.Id<states.PLAYER> {
+  return { kind: states.PLAYER, id };
 }
 
 describe('basic room creation and joining', () => {
@@ -43,11 +42,11 @@ describe('basic room creation and joining', () => {
       playerId: 'p1'
     })).toEqual(status.ok());
     expect(ds.get(roomId('r1'))).toEqual({
-      kind: states.Room,
+      kind: states.ROOM,
       players: ['p1'],
     });
     expect(ds.get(playerId('p1'))).toEqual({
-      kind: states.Player,
+      kind: states.PLAYER,
       roomId: 'r1'
     });
   });
@@ -59,11 +58,11 @@ describe('basic room creation and joining', () => {
       playerId: 'p1'
     })).toEqual(status.ok());
     expect(ds.get(roomId('r1'))).toEqual({
-      kind: states.Room,
+      kind: states.ROOM,
       players: ['p1'],
     });
     expect(ds.get(playerId('p1'))).toEqual({
-      kind: states.Player,
+      kind: states.PLAYER,
       roomId: 'r1'
     });
   });
@@ -80,11 +79,11 @@ describe('basic room creation and joining', () => {
       playerId: 'p2'
     })).toEqual(status.ok());
     expect(ds.get(roomId('r1'))).toEqual({
-      kind: states.Room,
+      kind: states.ROOM,
       players: ['p1', 'p2'],
     });
     expect(ds.get(playerId('p2'))).toEqual({
-      kind: states.Player,
+      kind: states.PLAYER,
       roomId: 'r1'
     });
   });
@@ -101,11 +100,11 @@ describe('basic room creation and joining', () => {
       playerId: 'p1'
     })).toEqual(status.ok());
     expect(ds.get(roomId('r1'))).toEqual({
-      kind: states.Room,
+      kind: states.ROOM,
       players: ['p1'],
     });
     expect(ds.get(playerId('p1'))).toEqual({
-      kind: states.Player,
+      kind: states.PLAYER,
       roomId: 'r1'
     });
   });
@@ -122,15 +121,15 @@ describe('basic room creation and joining', () => {
       playerId: 'p1'
     })).toEqual(status.ok());
     expect(ds.get(roomId('r1'))).toEqual({
-      kind: states.Room,
+      kind: states.ROOM,
       players: [],
     });
     expect(ds.get(roomId('r2'))).toEqual({
-      kind: states.Room,
+      kind: states.ROOM,
       players: ['p1'],
     });
     expect(ds.get(playerId('p1'))).toEqual({
-      kind: states.Player,
+      kind: states.PLAYER,
       roomId: 'r2'
     });
   });

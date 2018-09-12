@@ -1,36 +1,35 @@
 
-export const Room = 'ROOM';
-export type Room = typeof Room;
-export const Player = 'PLAYER';
-export type Player = typeof Player;
+export const ROOM = 'ROOM';
+export type ROOM = typeof ROOM;
+export const PLAYER = 'PLAYER';
+export type PLAYER = typeof PLAYER;
 
-export type StateMap = {
-  [Room]: RoomState;
-  [Player]: PlayerState;
+type StateMap = {
+  [ROOM]: RoomState;
+  [PLAYER]: PlayerState;
 }
 
-export type State = StateMap[keyof StateMap];
-
-export type StreamKinds = keyof StateMap;
+export type Kind = keyof StateMap;
+export type State = StateMap[Kind];
+export type ForKind<K extends Kind> = StateMap[K];
 
 export type RoomState = {
-  kind: Room;
+  kind: ROOM;
   players: string[];
 };
 
 export type PlayerState = {
-  kind: Player;
+  kind: PLAYER;
   roomId: string | null;
 };
 
-export function roomId(id: string): Id<Room> {
-  return { kind: Room, id };
+export function roomId(id: string): Id<ROOM> {
+  return { kind: ROOM, id };
 }
 
-export function playerId(id: string): Id<Player> {
-  return { kind: Player, id };
+export function playerId(id: string): Id<PLAYER> {
+  return { kind: PLAYER, id };
 }
-
 
 export type Id<K> = {
   kind: K;

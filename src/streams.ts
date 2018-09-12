@@ -2,13 +2,12 @@ import * as actions from './actions';
 import * as status from './status';
 import * as states from './states';
 
-
 export interface DB {
-  get<K extends states.StreamKinds>(id: states.Id<K>): states.StateMap[K] | null;
+  get<K extends states.State>(id: states.Id<K['kind']>): K | null;
   update(action: actions.Action, updates: states.Update<states.State>[]): status.Status;
 }
 
-type IdBundle = { [kind: string]: states.Id<states.StreamKinds> };
+type IdBundle = { [kind: string]: states.Id<states.Kind> };
 type StateBundle = { [kind: string]: states.State };
 
 type GetMore = {
@@ -30,10 +29,10 @@ type Error = {
 type ActorResult = GetMore | Commit | Error;
 type Actor = (state: StateBundle) => ActorResult;
 
-function mkDefault<K extends states.StreamKinds>(k: K): states.StateMap[K] {
-  switch (k as states.StreamKinds) {
-    case states.Room: return { kind: states.Room, players: [] }
-    case states.Player: return { kind: states.Player, roomId: null }
+function mkDefault<K extends states.Kind>(k: K): states.ForKind<K> {
+  switch (k as states.Kind) {
+    case states.ROOM: return { kind: states.ROOM, players: [] }
+    case states.PLAYER: return { kind: states.PLAYER, roomId: null }
   }
 }
 
@@ -148,131 +147,3 @@ function joinRoomAction(a: actions.JoinRoomAction, bundle: StateBundle): ActorRe
     updates: res,
   };
 }
-
-
-//
-// MyTypeModel = {
-// };
-//
-// type Foo = MyTypeModel extends Model ? string : never;
-//
-// const x: Foo = '234';
-//
-//
-// type State<TypeModel, K extends keyof TypeModel> = TypeModel[K];
-//
-// type Ids<TypeModel> = {
-//   [id: string]: Id<keyof TypeModel>;
-// }
-//
-// type States<TypeModel, Obj extends Ids<TypeModel>> = {
-//   [id in keyof Obj]: TypeModel[Obj[id]['kind']];
-// };
-
-//
-// type AdditionalRequests<TypeModel> = {
-//   kind: 'MORE';
-//   ids: Ids<TypeModel>;
-// };
-//
-// type Result<TypeModel, Lookups extends Ids<TypeModel>> = {
-//   kind: 'RESULT';
-//   status: status.Status;
-//   results: States<TypeModel, Lookups>;
-// }
-//
-// type Commit<TypeModel, Action, Lookups extends Ids<TypeModel>> = {
-//   action: Action;
-//   states: States<TypeModel, Lookups>;
-// };
-//
-// type Actor<TypeModel, Lookups extends Ids<TypeModel>> =
-//   (lookups: Lookups) =>
-//     AdditionalRequests<TypeModel> | Result<TypeModel, Lookups>
-//
-//
-// function applyAction<TypeModel, L>(db: DB, actor: Actor<TypeModel, )
-
-//
-// type StreamState<T extends StreamKind> =
-//   T extends StreamKind.ROOM ? actions.CreateRoom | actions.JoinRoom | actions.JoinRoomResult :
-//   T extends StreamType.PLAYER ? actions.CreatePlayer | actions.JoinRoom | actions.JoinRoomResult :
-//   T extends StreamType.PLAYER_JOINS_ROOM ? actions.JoinRoom :
-//   never;
-//
-// type StreamAction2 = {
-//   [StreamType.ROOM]: StreamType.PLAYER;
-//   [StreamType.PLAYER_JOINS_ROOM]: StreamType.ROOM;
-//
-// }
-//
-// type foo = StreamAction<StreamType.PLAYER>
-//
-//
-// export type StreamId<T extends StreamType> = {
-//   stream: T;
-//   id: string
-// };
-//
-// function dispatch<T extends StreamType>(id: StreamId<T>, action: StreamAction<T>): void {
-//
-// }
-//
-//
-//
-// // ========
-// // = ROOM =
-// // ========
-//
-//
-// export interface Room {
-//   created: boolean;
-//   playerIds: string[];
-// }
-//
-// export function room(state: Room = undefined,
-//   action: actions.RoomAction): [states.Room, status.Status, actions.Action[]] {
-//   switch (action.type) {
-//     case 'CREATE_ROOM': {
-//       if (state.created) {
-//         return [state, status.alreadyExists(), []];
-//       }
-//       return [{ ...state, created: true }, status.ok(), []];
-//     }
-//     case 'JOIN_ROOM': {
-//       if (!state.created) {
-//         return [state, status.notFound(), []];
-//       }
-//       const playerAction: actions.PlayerEntersRoomAction = {
-//         ...action,
-//         type: 'PLAYER_ENTERS_ROOM',
-//       }
-//       let next: states.Room = {
-//         ...state,
-//         players: { ...state.players, [action.playerId]: {} },
-//       };
-//       return [next, status.ok(), [playerAction]];
-//     }
-//   }
-// }
-//
-// // ==========
-// // = PLAYER =
-// // ==========
-//
-// export interface Player {
-//   currentRoomId: string | null;
-// }
-//
-// const initalPlayer = {
-//   currentRoomId: null,
-// };
-//
-// export function player(state: states.Player = initalPlayer,
-//   action: actions.PlayerAction): [states.Player, status.Status, actions.Action[]] {
-//   switch (action.type) {
-//     case 'PLAYER_ENTERS_ROOM': {
-//       return [{ ...state, currentRoomId: action.roomId }, status.ok(), []];
-//     }
-//   }
-// }
