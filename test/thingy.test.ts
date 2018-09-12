@@ -86,4 +86,26 @@ describe('basic room creation and joining', () => {
     });
   });
 
+  test('p1 moves, p2 stays', () => {
+    expect(doAction(actions.joinRoom('p1', 'r1'))).toEqual(status.ok());
+    expect(doAction(actions.joinRoom('p2', 'r1'))).toEqual(status.ok());
+    expect(doAction(actions.joinRoom('p1', 'r2'))).toEqual(status.ok());
+
+    expect(ds.get(roomId('r1'))).toEqual({
+      kind: states.ROOM,
+      players: ['p2'],
+    });
+    expect(ds.get(roomId('r2'))).toEqual({
+      kind: states.ROOM,
+      players: ['p1'],
+    });
+    expect(ds.get(playerId('p1'))).toEqual({
+      kind: states.PLAYER,
+      roomId: 'r2'
+    });
+    expect(ds.get(playerId('p2'))).toEqual({
+      kind: states.PLAYER,
+      roomId: 'r1'
+    });
+  });
 });
