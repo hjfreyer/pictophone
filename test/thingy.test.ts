@@ -6,27 +6,21 @@ import * as streams from '../src/streams';
 import * as states from '../src/states';
 import { roomId, playerId } from '../src/states';
 
-function set(...ts: string[]): { [v: string]: {} } {
-  const res: { [v: string]: {} } = {};
-  for (let t of ts) {
-    res[t] = {};
-  }
-  return res;
+let ds: fake_ds.Datastore;
+
+beforeEach(() => {
+  ds = new fake_ds.Datastore();
+});
+
+function doAction(a: actions.Action): status.Status {
+  return streams.apply(ds, streams.getActor(a));
 }
 
-describe('basic room creation and joining', () => {
-  let ds: fake_ds.Datastore;
-
-  beforeEach(() => {
-    ds = new fake_ds.Datastore();
-  })
-
-  test('rooms and players start null', () => {
+describe('basic rooms', () => {
+  test('start null', () => {
     expect(ds.get(roomId('r1'))).toBeNull();
     expect(ds.get(playerId('p1'))).toBeNull();
   });
-
-  const doAction = (a: actions.Action) => streams.apply(ds, streams.getActor(a));
 
   test('join creates lazily', () => {
     expect(doAction(actions.joinRoom('p1', 'r1'))).toEqual(status.ok());
@@ -106,6 +100,29 @@ describe('basic room creation and joining', () => {
     expect(ds.get(playerId('p2'))).toEqual({
       kind: states.PLAYER,
       roomId: 'r1'
+    });
+  });
+});
+
+describe('create game', () => {
+  beforeEach(() => {
+    expect(doAction(actions.joinRoom('p1', 'r1'))).toEqual(status.ok());
+    expect(doAction(actions.joinRoom('p2', 'r1'))).toEqual(status.ok());
+  });
+
+  test('create empty room', () => {
+    expect(doAction(actions.createGame('r_bogus'))).toEqual(status.notFound());
+  });
+
+  test('create real room', () => {
+    expect(doAction(actions.createGame('r1'))).toEqual(status.ok());
+    expect(ds.get(roomId('r1'))).toEqual({
+      kind: states.ROOM,
+      players: [],
+    });
+    expect(ds.get(roomId('r1'))).toEqual({
+      kind: states.ROOM,
+      players: [],
     });
   });
 });

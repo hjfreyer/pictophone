@@ -81,13 +81,17 @@ function addUnique(arr: string[], val: string): string[] {
 }
 
 export function getActor(a: actions.Action): Actor {
+  function curry<A>(fn: (action: A, bundle: StateBundle) => ActorResult, action: A) {
+    return (bundle: StateBundle) => fn(action, bundle);
+  }
+
   switch (a.kind) {
-    case actions.JOIN_ROOM:
-      return (bundle: StateBundle) => joinRoomAction(a, bundle);
+    case actions.JOIN_ROOM: return curry(joinRoomAction, a);
+    case actions.CREATE_GAME: return curry(createGameAction, a);
   }
 }
 
-function joinRoomAction(a: actions.JoinRoomAction, bundle: StateBundle): ActorResult {
+function joinRoomAction(a: actions.JoinRoom, bundle: StateBundle): ActorResult {
   if (!('player' in bundle)) {
     return {
       kind: 'GET_MORE',
@@ -145,5 +149,27 @@ function joinRoomAction(a: actions.JoinRoomAction, bundle: StateBundle): ActorRe
     kind: 'COMMIT',
     action: a,
     updates: res,
+  };
+}
+
+function createGameAction(a: actions.CreateGame, bundle: StateBundle): ActorResult {
+  if (!('room' in bundle)) {
+    return {
+      kind: 'GET_MORE',
+      ids: { room: states.roomId(a.roomId) },
+    }
+  }
+
+  const room = bundle.room as states.RoomState;
+  if (room.players.length === 0) {
+    return {
+      kind: 'ERROR',
+      status: status.notFound()
+    };
+  }
+
+  return {
+    kind: 'ERROR',
+    status: status.ok()
   };
 }
