@@ -1,35 +1,47 @@
 
 export const ROOM = 'ROOM';
 export type ROOM = typeof ROOM;
-export const PLAYER = 'PLAYER';
-export type PLAYER = typeof PLAYER;
-
-type StateMap = {
-  [ROOM]: RoomState;
-  [PLAYER]: PlayerState;
-}
-
-export type Kind = keyof StateMap;
-export type State = StateMap[Kind];
-export type ForKind<K extends Kind> = StateMap[K];
+interface StateMap { [ROOM]: RoomState; }
 
 export type RoomState = {
   kind: ROOM;
   players: string[];
 };
 
+export function roomId(id: string): Id<ROOM> {
+  return { kind: ROOM, id };
+}
+
+export const PLAYER = 'PLAYER';
+export type PLAYER = typeof PLAYER;
+interface StateMap { [PLAYER]: PlayerState; }
+
 export type PlayerState = {
   kind: PLAYER;
   roomId: string | null;
 };
 
-export function roomId(id: string): Id<ROOM> {
-  return { kind: ROOM, id };
-}
-
 export function playerId(id: string): Id<PLAYER> {
   return { kind: PLAYER, id };
 }
+
+export const GAME = 'GAME';
+export type GAME = typeof GAME;
+interface StateMap { [GAME]: GameState; }
+
+export type GameState = {
+  kind: GAME;
+  players: string[];
+  permutation: number[];
+};
+
+export function gameId(id: string): Id<GAME> {
+  return { kind: GAME, id };
+}
+
+export type Kind = keyof StateMap;
+export type State = StateMap[Kind];
+export type ForKind<K extends Kind> = StateMap[K];
 
 export type Id<K> = {
   kind: K;

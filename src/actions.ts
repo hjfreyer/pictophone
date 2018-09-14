@@ -24,8 +24,9 @@ interface ActionMap { [CREATE_GAME]: CreateGame; }
 export type CreateGame = {
   kind: CREATE_GAME;
   roomId: string;
+  gameId: string;
 };
 
-export function createGame(roomId: string): Action {
-  return { kind: CREATE_GAME, roomId };
+export function createGame(roomId: string, gameId: string): Action {
+  return { kind: CREATE_GAME, roomId, gameId };
 }

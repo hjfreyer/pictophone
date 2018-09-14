@@ -1,6 +1,7 @@
 import * as actions from './actions';
 import * as status from './status';
 import * as states from './states';
+import produce from "immer";
 
 export interface DB {
   get<K extends states.State>(id: states.Id<K['kind']>): K | null;
@@ -30,10 +31,16 @@ type ActorResult = GetMore | Commit | Error;
 type Actor = (state: StateBundle) => ActorResult;
 
 function mkDefault<K extends states.Kind>(k: K): states.ForKind<K> {
-  switch (k as states.Kind) {
-    case states.ROOM: return { kind: states.ROOM, players: [] }
-    case states.PLAYER: return { kind: states.PLAYER, roomId: null }
-  }
+  const defaults: { [K in states.Kind]: states.ForKind<K> } = {
+    [states.ROOM]: { kind: states.ROOM, players: [] },
+    [states.PLAYER]: { kind: states.PLAYER, roomId: null },
+    [states.GAME]: {
+      kind: states.GAME,
+      players: [],
+      permutation: [],
+    },
+  };
+  return defaults[k];
 }
 
 function getAll(db: DB, ids: IdBundle): { [key: string]: states.State } {
@@ -156,15 +163,25 @@ function createGameAction(a: actions.CreateGame, bundle: StateBundle): ActorResu
   if (!('room' in bundle)) {
     return {
       kind: 'GET_MORE',
-      ids: { room: states.roomId(a.roomId) },
+      ids: {
+        room: states.roomId(a.roomId),
+        game: states.gameId(a.gameId),
+      },
     }
   }
 
   const room = bundle.room as states.RoomState;
+  const game = bundle.game as states.GameState;
   if (room.players.length === 0) {
     return {
       kind: 'ERROR',
       status: status.notFound()
+    };
+  }
+  if (game.players.length !== 0) {
+    return {
+      kind: 'ERROR',
+      status: status.alreadyExists()
     };
   }
 
