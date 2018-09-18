@@ -1,25 +1,75 @@
 import * as actions from './actions';
 import * as status from './status';
 import * as states from './states';
-import produce from "immer";
 
-export interface DB {
-  get<K extends states.State>(id: states.Id<K['kind']>): K | null;
-  update(action: actions.Action, updates: states.Update<states.State>[]): status.Status;
+export type Id = {
+  collection: string;
+  id: string;
 }
 
-type IdBundle = { [kind: string]: states.Id<states.Kind> };
-type StateBundle = { [kind: string]: states.State };
+export interface DB {
+  get(id: Id): any | null;
+  update(updates: Mutation[]): status.Status;
+}
+
+export type Update = {
+  kind: 'UPDATE';
+  collection: string;
+  id: string;
+  state: any;
+}
+
+export type Insert = {
+  kind: 'INSERT';
+  collection: string;
+  id: string;
+  state: any;
+};
+
+export type Mutation = Update | Insert;
+
+type CreateRequest = {
+  kind: 'CREATE';
+  collection: string;
+};
+
+type CreateResponse = {
+  kind: 'CREATE';
+  collection: string;
+  id: string;
+}
+
+type GetRequest = {
+  kind: 'GET';
+  collection: string;
+  id: string;
+}
+
+type GetResponse = {
+  kind: 'GET';
+  collection: string;
+  id: string;
+  state: any | null;
+}
+
+type Request = CreateRequest | GetRequest;
+type Response = CreateResponse | GetResponse;
+
+type Requests = { [id: string]: Request }
+type Responses = { [id: string]: Response }
+//
+// type IdBundle = { [kind: string]: states.Id<states.Kind> };
+// type StateBundle = { [kind: string]: states.State };
 
 type GetMore = {
   kind: 'GET_MORE';
-  ids: IdBundle;
+  requests: Requests;
 };
 
 type Commit = {
   kind: 'COMMIT';
   action: actions.Action;
-  updates: StateBundle;
+  updates: { [id: string]: any };
 };
 
 type Error = {
@@ -28,7 +78,7 @@ type Error = {
 };
 
 type ActorResult = GetMore | Commit | Error;
-type Actor = (state: StateBundle) => ActorResult;
+type Actor = (responses: Responses) => ActorResult;
 
 function mkDefault<K extends states.Kind>(k: K): states.ForKind<K> {
   const defaults: { [K in states.Kind]: states.ForKind<K> } = {
@@ -43,41 +93,86 @@ function mkDefault<K extends states.Kind>(k: K): states.ForKind<K> {
   return defaults[k];
 }
 
-function getAll(db: DB, ids: IdBundle): { [key: string]: states.State } {
-  const res: StateBundle = {};
+function mkId(): string {
+  return Math.random().toString(36).substring(7);
+}
 
-  for (const key in ids) {
-    res[key] = db.get(ids[key]) || mkDefault(ids[key].kind);
+function getAll(db: DB, requests: Requests): Responses {
+  const res: Responses = {};
+
+  for (const key in requests) {
+    const req = requests[key];
+    switch (req.kind) {
+      case 'CREATE':
+        res[key] = {
+          kind: "CREATE",
+          collection: req.collection,
+          id: mkId(),
+        };
+        break;
+
+      case 'GET':
+        res[key] = {
+          kind: "GET",
+          collection: req.collection,
+          id: req.id,
+          state: db.get({ collection: req.collection, id: req.id }),
+        };
+        break;
+    }
   }
 
   return res;
 }
 
 export function apply(db: DB, actor: Actor): status.Status {
-  let lastRequest: IdBundle | null = null;
-  let objs = {};
 
   while (true) {
-    let res = actor(objs);
+    const res: status.Status | Mutation[] = function() {
+      let lastRequests: Requests = {};
 
-    switch (res.kind) {
-      case 'GET_MORE':
-        lastRequest = res.ids;
-        objs = getAll(db, res.ids);
-        continue;
+      while (true) {
+        let responses = getAll(db, lastRequests);
+        let res = actor(responses);
+        switch (res.kind) {
+          case 'GET_MORE':
+            lastRequests = res.requests;
+            continue;
 
-      case 'ERROR':
-        return res.status;
+          case 'ERROR':
+            return res.status;
 
-      case 'COMMIT': {
-        const updates: states.Update<states.State>[] = [];
-        for (let key in lastRequest!) {
-          updates.push({
-            id: lastRequest![key],
-            state: res.updates[key],
-          });
+          case 'COMMIT': {
+            const updates: Mutation[] = [];
+            for (let key in responses) {
+              if (responses[key].kind == "CREATE") {
+                updates.push({
+                  kind: "INSERT",
+                  collection: responses[key].collection,
+                  id: responses[key].id,
+                  state: res.updates[key],
+                });
+              } else {
+                updates.push({
+                  kind: "UPDATE",
+                  collection: responses[key].collection,
+                  id: responses[key].id,
+                  state: res.updates[key],
+                });
+              }
+            }
+            return updates;
+          }
         }
-        return db.update(res.action, updates);
+      }
+    }();
+
+    if ('code' in res) {
+      return res;
+    } else {
+      const stat = db.update(res);
+      if (status.isOk(stat)) {
+        return stat;
       }
     }
   }
@@ -88,8 +183,8 @@ function addUnique(arr: string[], val: string): string[] {
 }
 
 export function getActor(a: actions.Action): Actor {
-  function curry<A>(fn: (action: A, bundle: StateBundle) => ActorResult, action: A) {
-    return (bundle: StateBundle) => fn(action, bundle);
+  function curry<A>(fn: (action: A, responses: Responses) => ActorResult, action: A) {
+    return (requests: Responses) => fn(action, requests);
   }
 
   switch (a.kind) {
@@ -98,48 +193,81 @@ export function getActor(a: actions.Action): Actor {
   }
 }
 
-function joinRoomAction(a: actions.JoinRoom, bundle: StateBundle): ActorResult {
-  if (!('player' in bundle)) {
+
+export function playerId(id: string): Id {
+  return { collection: "players", id };
+}
+
+export function roomId(id: string): Id {
+  return { collection: "rooms", id };
+}
+
+export function gameId(id: string): Id {
+  return { collection: "games", id };
+}
+
+function getState<K extends states.Kind>(kind: K, obj: any): states.ForKind<K> {
+  const getResp = obj as GetResponse;
+  if (getResp.state === null) {
+    return mkDefault(kind);
+  }
+  return getResp.state as states.ForKind<K>;
+}
+
+function joinRoomAction(a: actions.JoinRoom, responses: Responses): ActorResult {
+  if (!('player' in responses)) {
     return {
       kind: 'GET_MORE',
-      ids: { player: states.playerId(a.playerId), newRoom: states.roomId(a.roomId) },
+      requests: {
+        player: {
+          kind: "GET",
+          ...playerId(a.playerId),
+        },
+        newRoom: {
+          kind: "GET",
+          ...roomId(a.roomId),
+        }
+      }
     }
   }
-  const res: StateBundle = {};
 
-  const player = bundle.player as states.PlayerState;
+  const player = getState(states.PLAYER, responses.player);
 
   if (player.roomId == a.roomId) {
     // Already in room.
     return { kind: 'ERROR', status: status.ok() };
   }
 
-  if (player.roomId != null && !('oldRoom' in bundle)) {
+  if (player.roomId != null && !('oldRoom' in responses)) {
     return {
       kind: 'GET_MORE',
-      ids: {
-        player: states.playerId(a.playerId),
-        newRoom: states.roomId(a.roomId),
-        oldRoom: states.roomId(player.roomId),
+      requests: {
+        player: { kind: "GET", ...playerId(a.playerId) },
+        newRoom: { kind: "GET", ...roomId(a.roomId) },
+        oldRoom: { kind: "GET", ...roomId(player.roomId) },
       },
     }
   }
 
-  const oldRoom = bundle.oldRoom as (states.RoomState | null);
-  const newRoom = bundle.newRoom as states.RoomState;
+  const newRoom = getState(states.ROOM, responses.newRoom);
 
-  if (oldRoom != null) {
+  let res: any = {};
+
+  if (player.roomId != null) {
+    const oldRoom = getState(states.ROOM, responses.oldRoom);
+
     const playerIdx = oldRoom.players.indexOf(a.playerId);
     if (playerIdx == -1) {
       return { kind: 'ERROR', status: status.internal() };
     }
-    res.oldRoom = {
+    let newOldRoom: states.RoomState = {
       ...oldRoom,
       players: [
         ...oldRoom.players.slice(0, playerIdx),
         ...oldRoom.players.slice(playerIdx + 1),
       ],
     };
+    res.oldRoom = newOldRoom;
   }
 
   res.player = {
@@ -159,29 +287,23 @@ function joinRoomAction(a: actions.JoinRoom, bundle: StateBundle): ActorResult {
   };
 }
 
-function createGameAction(a: actions.CreateGame, bundle: StateBundle): ActorResult {
-  if (!('room' in bundle)) {
+function createGameAction(a: actions.CreateGame, responses: Responses): ActorResult {
+  if (!('room' in responses)) {
     return {
       kind: 'GET_MORE',
-      ids: {
-        room: states.roomId(a.roomId),
-        game: states.gameId(a.gameId),
-      },
+      requests: {
+        room: { kind: "GET", ...roomId(a.roomId) },
+        game: { kind: "CREATE", collection: "games" },
+      }
     }
   }
 
-  const room = bundle.room as states.RoomState;
-  const game = bundle.game as states.GameState;
+  const room = getState(states.ROOM, responses.room);
+  const gameId = (responses.game as CreateResponse).id;
   if (room.players.length === 0) {
     return {
       kind: 'ERROR',
       status: status.notFound()
-    };
-  }
-  if (game.players.length !== 0) {
-    return {
-      kind: 'ERROR',
-      status: status.alreadyExists()
     };
   }
 

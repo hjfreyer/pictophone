@@ -4,7 +4,7 @@ import * as fake_ds from './fake_ds';
 import * as status from '../src/status';
 import * as streams from '../src/streams';
 import * as states from '../src/states';
-import { roomId, playerId } from '../src/states';
+import { roomId, playerId } from '../src/streams';
 
 let ds: fake_ds.Datastore;
 
@@ -111,20 +111,20 @@ describe('create game', () => {
   });
 
   test('create empty room', () => {
-    expectAction(actions.createGame('r_bogus', 'g1'))
+    expectAction(actions.createGame('r_bogus'))
       .toEqual(status.notFound());
   });
 
 
   test('game id collision', () => {
     expectAction(actions.joinRoom('p3', 'r1')).toEqual(status.ok());
-    expectAction(actions.createGame('r1', 'g1')).toEqual(status.ok());
-    expectAction(actions.createGame('r2', 'g1')).toEqual(status.alreadyExists());
+    expectAction(actions.createGame('r1')).toEqual(status.ok());
+    expectAction(actions.createGame('r2')).toEqual(status.alreadyExists());
   });
 
 
   test('create real room', () => {
-    expectAction(actions.createGame('r1', 'g1')).toEqual(status.ok());
+    expectAction(actions.createGame('r1')).toEqual(status.ok());
     expect(ds.get(roomId('r1'))).toEqual({
       kind: states.ROOM,
       players: [],
