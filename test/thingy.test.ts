@@ -13,7 +13,7 @@ beforeEach(() => {
 });
 
 function expectAction(a: actions.Action): jest.Matchers<status.Status> {
-  return expect(streams.apply(ds, streams.getActor(a)));
+  return expect(streams.apply(ds, streams.getActor(a)).status);
 }
 
 describe('basic rooms', () => {
@@ -115,15 +115,15 @@ describe('create game', () => {
       .toEqual(status.notFound());
   });
 
+  //
+  // test('game id collision', () => {
+  //   expectAction(actions.joinRoom('p3', 'r1')).toEqual(status.ok());
+  //   expectAction(actions.createGame('r1')).toEqual(status.ok());
+  //   expectAction(actions.createGame('r2')).toEqual(status.alreadyExists());
+  // });
 
-  test('game id collision', () => {
-    expectAction(actions.joinRoom('p3', 'r1')).toEqual(status.ok());
-    expectAction(actions.createGame('r1')).toEqual(status.ok());
-    expectAction(actions.createGame('r2')).toEqual(status.alreadyExists());
-  });
 
-
-  test('create real room', () => {
+  test('create real game', () => {
     expectAction(actions.createGame('r1')).toEqual(status.ok());
     expect(ds.get(roomId('r1'))).toEqual({
       kind: states.ROOM,

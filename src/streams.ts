@@ -66,18 +66,15 @@ type GetMore = {
   requests: Requests;
 };
 
-type Commit = {
-  kind: 'COMMIT';
+type Finish = {
+  kind: 'FINISH';
+  result: any;
   action: actions.Action;
   updates: { [id: string]: any };
 };
 
-type Error = {
-  kind: 'ERROR';
-  status: status.Status;
-};
 
-type ActorResult = GetMore | Commit | Error;
+type ActorResult = GetMore | Finish;
 type Actor = (responses: Responses) => ActorResult;
 
 function mkDefault<K extends states.Kind>(k: K): states.ForKind<K> {
@@ -125,10 +122,10 @@ function getAll(db: DB, requests: Requests): Responses {
   return res;
 }
 
-export function apply(db: DB, actor: Actor): status.Status {
+export function apply(db: DB, actor: Actor): any {
 
   while (true) {
-    const res: status.Status | Mutation[] = function() {
+    const res: { result: any, updates: Mutation[] } = (function() {
       let lastRequests: Requests = {};
 
       while (true) {
@@ -139,12 +136,12 @@ export function apply(db: DB, actor: Actor): status.Status {
             lastRequests = res.requests;
             continue;
 
-          case 'ERROR':
-            return res.status;
-
-          case 'COMMIT': {
+          case 'FINISH': {
             const updates: Mutation[] = [];
             for (let key in responses) {
+              if (!(key in res.updates)) {
+                throw 'missing key!';
+              }
               if (responses[key].kind == "CREATE") {
                 updates.push({
                   kind: "INSERT",
@@ -161,19 +158,18 @@ export function apply(db: DB, actor: Actor): status.Status {
                 });
               }
             }
-            return updates;
+            return {
+              result: res.result,
+              updates: updates,
+            };
           }
         }
       }
-    }();
+    }());
 
-    if ('code' in res) {
-      return res;
-    } else {
-      const stat = db.update(res);
-      if (status.isOk(stat)) {
-        return stat;
-      }
+    const stat = db.update(res.updates);
+    if (status.isOk(stat)) {
+      return res.result;
     }
   }
 }
@@ -234,8 +230,14 @@ function joinRoomAction(a: actions.JoinRoom, responses: Responses): ActorResult 
   const player = getState(states.PLAYER, responses.player);
 
   if (player.roomId == a.roomId) {
+    console.log("already here");
     // Already in room.
-    return { kind: 'ERROR', status: status.ok() };
+    return {
+      kind: 'FINISH',
+      action: a,
+      result: { status: status.ok() },
+      updates: { player: player },
+    };
   }
 
   if (player.roomId != null && !('oldRoom' in responses)) {
@@ -258,7 +260,12 @@ function joinRoomAction(a: actions.JoinRoom, responses: Responses): ActorResult 
 
     const playerIdx = oldRoom.players.indexOf(a.playerId);
     if (playerIdx == -1) {
-      return { kind: 'ERROR', status: status.internal() };
+      return {
+        kind: 'FINISH',
+        action: a,
+        result: { status: status.internal() },
+        updates: { player, newRoom, oldRoom },
+      };
     }
     let newOldRoom: states.RoomState = {
       ...oldRoom,
@@ -281,8 +288,9 @@ function joinRoomAction(a: actions.JoinRoom, responses: Responses): ActorResult 
   }
 
   return {
-    kind: 'COMMIT',
+    kind: 'FINISH',
     action: a,
+    result: { status: status.ok() },
     updates: res,
   };
 }
@@ -302,13 +310,16 @@ function createGameAction(a: actions.CreateGame, responses: Responses): ActorRes
   const gameId = (responses.game as CreateResponse).id;
   if (room.players.length === 0) {
     return {
-      kind: 'ERROR',
-      status: status.notFound()
-    };
+      kind: 'FINISH',
+      action: a,
+      result: { status: status.notFound() },
+      updates: { room, game: null },
+    }
   }
-
   return {
-    kind: 'ERROR',
-    status: status.ok()
+    kind: 'FINISH',
+    action: a,
+    result: { status: status.ok() },
+    updates: { room, game: null }
   };
 }
