@@ -1,42 +1,8 @@
 import * as actions from './actions';
 import * as status from './status';
 import * as states from './states';
+import * as base from './base';
 import Prando from 'prando';
-
-export type Id = {
-  collection: string;
-  id: string;
-}
-
-export interface DB {
-  get(id: Id): any | null;
-  update(updates: Update[]): status.Status;
-}
-
-export type Update = {
-  collection: string;
-  id: string;
-  state: any;
-}
-
-//
-// type IdBundle = { [kind: string]: states.Id<states.Kind> };
-// type StateBundle = { [kind: string]: states.State };
-
-type Graft = {
-  kind: 'GRAFT';
-  additionalIds: Id[];
-  extra: any;
-};
-
-type Finish = {
-  kind: 'FINISH';
-  result: any;
-  updates: any[];
-};
-
-type ActorResult = Graft | Finish;
-type Actor = (action: string, ids: Id[], states: any[], extra?: any) => ActorResult;
 
 function mkDefault<K extends states.Kind>(k: K): states.ForKind<K> {
   const defaults: { [K in states.Kind]: states.ForKind<K> } = {
@@ -51,36 +17,11 @@ function mkDefault<K extends states.Kind>(k: K): states.ForKind<K> {
   return defaults[k];
 }
 
-export function apply(db: DB, actor: Actor, action: string): any {
-  let ids: Id[] = [];
-  let states: any[] = [];
-  let extra: any | undefined;
-
-  while (true) {
-    const res = actor(action, [...ids], [...states], extra);
-    if (res.kind == "FINISH") {
-      const updates: Update[] = ids.map((id, idx) => ({
-        ...id,
-        state: res.updates[idx],
-      }));
-      const s = db.update(updates);
-      if (!status.isOk(s)) {
-        throw 'errr what?';
-      }
-      return res.result;
-    }
-
-    ids = [...ids, ...res.additionalIds];
-    states = [...states, ...res.additionalIds.map(id => db.get(id))];
-    extra = res.extra;
-  }
-}
-
 function addUnique(arr: string[], val: string): string[] {
   return arr.indexOf(val) == -1 ? [...arr, val] : arr;
 }
 
-export function actor2(actionStr: string, ids: Id[], states: any[], extra?: any): ActorResult {
+export function actor2(actionStr: string, ids: base.Id[], states: any[], extra?: any): base.ActorResult {
   const action = JSON.parse(actionStr) as actions.Action;
 
   switch (action.kind) {
@@ -91,20 +32,20 @@ export function actor2(actionStr: string, ids: Id[], states: any[], extra?: any)
   }
 }
 
-export function playerId(id: string): Id {
+export function playerId(id: string): base.Id {
   return { collection: "players", id };
 }
 
-export function roomId(id: string): Id {
+export function roomId(id: string): base.Id {
   return { collection: "rooms", id };
 }
 
-export function gameId(id: string): Id {
+export function gameId(id: string): base.Id {
   return { collection: "games", id };
 }
 
 function joinRoomAction(a: actions.JoinRoom, extra: any,
-  ids: Id[], sts: any[]): ActorResult {
+  ids: base.Id[], sts: any[]): base.ActorResult {
   if (ids.length == 0) {
     return {
       kind: "GRAFT",
@@ -176,7 +117,7 @@ type CreateGameExtra = {
   gameAttempts: number,
 }
 
-function createGameAction(a: actions.CreateGame, ids: Id[], sts: any[], extra: CreateGameExtra = { gameAttempts: 0 }): ActorResult {
+function createGameAction(a: actions.CreateGame, ids: base.Id[], sts: any[], extra: CreateGameExtra = { gameAttempts: 0 }): base.ActorResult {
   console.log(ids, sts, extra);
   const rng = new Prando(JSON.stringify(a) + ':' + extra.gameAttempts);
   if (ids.length == 0) {

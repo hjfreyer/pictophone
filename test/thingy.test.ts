@@ -2,6 +2,7 @@
 import * as actions from '../src/actions';
 import * as fake_ds from './fake_ds';
 import * as status from '../src/status';
+import * as base from '../src/base';
 import * as streams from '../src/streams';
 import * as states from '../src/states';
 import { roomId, playerId, gameId } from '../src/streams';
@@ -13,7 +14,7 @@ beforeEach(() => {
 });
 
 function doAction(a: actions.Action): any {
-  return streams.apply(ds, streams.actor2, JSON.stringify(a));
+  return base.apply(ds, streams.actor2, JSON.stringify(a));
 }
 
 function expectAction(a: actions.Action): jest.Matchers<status.Status> {
