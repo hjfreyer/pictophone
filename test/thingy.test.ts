@@ -4,7 +4,7 @@ import * as fake_ds from './fake_ds';
 import * as status from '../src/status';
 import * as streams from '../src/streams';
 import * as states from '../src/states';
-import { roomId, playerId } from '../src/streams';
+import { roomId, playerId, gameId } from '../src/streams';
 
 let ds: fake_ds.Datastore;
 
@@ -12,8 +12,12 @@ beforeEach(() => {
   ds = new fake_ds.Datastore();
 });
 
+function doAction(a: actions.Action): any {
+  return streams.apply(ds, streams.actor2, JSON.stringify(a));
+}
+
 function expectAction(a: actions.Action): jest.Matchers<status.Status> {
-  return expect(streams.apply(ds, streams.getActor(a)).status);
+  return expect(doAction(a).status);
 }
 
 describe('basic rooms', () => {
@@ -124,14 +128,43 @@ describe('create game', () => {
 
 
   test('create real game', () => {
-    expectAction(actions.createGame('r1')).toEqual(status.ok());
-    expect(ds.get(roomId('r1'))).toEqual({
-      kind: states.ROOM,
-      players: [],
+    const res = doAction(actions.createGame('r1'));
+    expect(res.status).toEqual(status.ok());
+    expect(ds.get(roomId('r1'))).toBeNull();
+    expect(ds.get(playerId('p1'))).toEqual({
+      kind: states.PLAYER,
+      roomId: null,
     });
+    expect(ds.get(playerId('p2'))).toEqual({
+      kind: states.PLAYER,
+      roomId: null,
+    });
+    expect(res.gameId).toEqual(gameId('eyk3YYeOG3Q0ybkg'));
+    expect(ds.get(gameId(res.gameId.id))).toEqual({
+      kind: states.GAME,
+      permutation: [1, 0],
+      players: ['p1', 'p2'],
+    });
+  });
+
+  test('games from same room dont collide', () => {
+    doAction(actions.createGame('r1'));
+    expectAction(actions.joinRoom('p3', 'r1')).toEqual(status.ok());
+    expectAction(actions.joinRoom('p4', 'r1')).toEqual(status.ok());
+    expectAction(actions.joinRoom('p5', 'r1')).toEqual(status.ok());
+
     expect(ds.get(roomId('r1'))).toEqual({
       kind: states.ROOM,
-      players: [],
+      players: ['p3', 'p4', 'p5'],
+    });
+
+    const res = doAction(actions.createGame('r1'));
+    expect(res.status).toEqual(status.ok());
+    expect(res.gameId).toEqual(gameId('dA3OecVB5gcgsu0x'));
+    expect(ds.get(gameId(res.gameId.id))).toEqual({
+      kind: states.GAME,
+      permutation: [1, 2, 0],
+      players: ['p3', 'p4', 'p5'],
     });
   });
 });

@@ -27,5 +27,9 @@
       "json",
       "node"
     ]
+  },
+  "dependencies": {
+    "js-sha256": "^0.9.0",
+    "prando": "^3.0.3"
   }
 }

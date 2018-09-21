@@ -1,6 +1,7 @@
 import * as actions from './actions';
 import * as status from './status';
 import * as states from './states';
+import Prando from 'prando';
 
 export type Id = {
   collection: string;
@@ -9,73 +10,33 @@ export type Id = {
 
 export interface DB {
   get(id: Id): any | null;
-  update(updates: Mutation[]): status.Status;
+  update(updates: Update[]): status.Status;
 }
 
 export type Update = {
-  kind: 'UPDATE';
   collection: string;
   id: string;
   state: any;
 }
 
-export type Insert = {
-  kind: 'INSERT';
-  collection: string;
-  id: string;
-  state: any;
-};
-
-export type Mutation = Update | Insert;
-
-type CreateRequest = {
-  kind: 'CREATE';
-  collection: string;
-};
-
-type CreateResponse = {
-  kind: 'CREATE';
-  collection: string;
-  id: string;
-}
-
-type GetRequest = {
-  kind: 'GET';
-  collection: string;
-  id: string;
-}
-
-type GetResponse = {
-  kind: 'GET';
-  collection: string;
-  id: string;
-  state: any | null;
-}
-
-type Request = CreateRequest | GetRequest;
-type Response = CreateResponse | GetResponse;
-
-type Requests = { [id: string]: Request }
-type Responses = { [id: string]: Response }
 //
 // type IdBundle = { [kind: string]: states.Id<states.Kind> };
 // type StateBundle = { [kind: string]: states.State };
 
-type GetMore = {
-  kind: 'GET_MORE';
-  requests: Requests;
+type Graft = {
+  kind: 'GRAFT';
+  additionalIds: Id[];
+  extra: any;
 };
 
 type Finish = {
   kind: 'FINISH';
   result: any;
-  action: actions.Action;
-  updates: { [id: string]: any };
+  updates: any[];
 };
 
-
-type ActorResult = GetMore | Finish;
-type Actor = (responses: Responses) => ActorResult;
+type ActorResult = Graft | Finish;
+type Actor = (action: string, ids: Id[], states: any[], extra?: any) => ActorResult;
 
 function mkDefault<K extends states.Kind>(k: K): states.ForKind<K> {
   const defaults: { [K in states.Kind]: states.ForKind<K> } = {
@@ -90,87 +51,28 @@ function mkDefault<K extends states.Kind>(k: K): states.ForKind<K> {
   return defaults[k];
 }
 
-function mkId(): string {
-  return Math.random().toString(36).substring(7);
-}
-
-function getAll(db: DB, requests: Requests): Responses {
-  const res: Responses = {};
-
-  for (const key in requests) {
-    const req = requests[key];
-    switch (req.kind) {
-      case 'CREATE':
-        res[key] = {
-          kind: "CREATE",
-          collection: req.collection,
-          id: mkId(),
-        };
-        break;
-
-      case 'GET':
-        res[key] = {
-          kind: "GET",
-          collection: req.collection,
-          id: req.id,
-          state: db.get({ collection: req.collection, id: req.id }),
-        };
-        break;
-    }
-  }
-
-  return res;
-}
-
-export function apply(db: DB, actor: Actor): any {
+export function apply(db: DB, actor: Actor, action: string): any {
+  let ids: Id[] = [];
+  let states: any[] = [];
+  let extra: any | undefined;
 
   while (true) {
-    const res: { result: any, updates: Mutation[] } = (function() {
-      let lastRequests: Requests = {};
-
-      while (true) {
-        let responses = getAll(db, lastRequests);
-        let res = actor(responses);
-        switch (res.kind) {
-          case 'GET_MORE':
-            lastRequests = res.requests;
-            continue;
-
-          case 'FINISH': {
-            const updates: Mutation[] = [];
-            for (let key in responses) {
-              if (!(key in res.updates)) {
-                throw 'missing key!';
-              }
-              if (responses[key].kind == "CREATE") {
-                updates.push({
-                  kind: "INSERT",
-                  collection: responses[key].collection,
-                  id: responses[key].id,
-                  state: res.updates[key],
-                });
-              } else {
-                updates.push({
-                  kind: "UPDATE",
-                  collection: responses[key].collection,
-                  id: responses[key].id,
-                  state: res.updates[key],
-                });
-              }
-            }
-            return {
-              result: res.result,
-              updates: updates,
-            };
-          }
-        }
+    const res = actor(action, [...ids], [...states], extra);
+    if (res.kind == "FINISH") {
+      const updates: Update[] = ids.map((id, idx) => ({
+        ...id,
+        state: res.updates[idx],
+      }));
+      const s = db.update(updates);
+      if (!status.isOk(s)) {
+        throw 'errr what?';
       }
-    }());
-
-    const stat = db.update(res.updates);
-    if (status.isOk(stat)) {
       return res.result;
     }
+
+    ids = [...ids, ...res.additionalIds];
+    states = [...states, ...res.additionalIds.map(id => db.get(id))];
+    extra = res.extra;
   }
 }
 
@@ -178,17 +80,16 @@ function addUnique(arr: string[], val: string): string[] {
   return arr.indexOf(val) == -1 ? [...arr, val] : arr;
 }
 
-export function getActor(a: actions.Action): Actor {
-  function curry<A>(fn: (action: A, responses: Responses) => ActorResult, action: A) {
-    return (requests: Responses) => fn(action, requests);
-  }
+export function actor2(actionStr: string, ids: Id[], states: any[], extra?: any): ActorResult {
+  const action = JSON.parse(actionStr) as actions.Action;
 
-  switch (a.kind) {
-    case actions.JOIN_ROOM: return curry(joinRoomAction, a);
-    case actions.CREATE_GAME: return curry(createGameAction, a);
+  switch (action.kind) {
+    case actions.JOIN_ROOM:
+      return joinRoomAction(action, extra, ids, states);
+    case actions.CREATE_GAME:
+      return createGameAction(action, ids, states, extra);
   }
 }
-
 
 export function playerId(id: string): Id {
   return { collection: "players", id };
@@ -202,124 +103,172 @@ export function gameId(id: string): Id {
   return { collection: "games", id };
 }
 
-function getState<K extends states.Kind>(kind: K, obj: any): states.ForKind<K> {
-  const getResp = obj as GetResponse;
-  if (getResp.state === null) {
-    return mkDefault(kind);
-  }
-  return getResp.state as states.ForKind<K>;
-}
-
-function joinRoomAction(a: actions.JoinRoom, responses: Responses): ActorResult {
-  if (!('player' in responses)) {
+function joinRoomAction(a: actions.JoinRoom, extra: any,
+  ids: Id[], sts: any[]): ActorResult {
+  if (ids.length == 0) {
     return {
-      kind: 'GET_MORE',
-      requests: {
-        player: {
-          kind: "GET",
-          ...playerId(a.playerId),
-        },
-        newRoom: {
-          kind: "GET",
-          ...roomId(a.roomId),
-        }
-      }
-    }
-  }
-
-  const player = getState(states.PLAYER, responses.player);
-
-  if (player.roomId == a.roomId) {
-    console.log("already here");
-    // Already in room.
-    return {
-      kind: 'FINISH',
-      action: a,
-      result: { status: status.ok() },
-      updates: { player: player },
+      kind: "GRAFT",
+      extra: null,
+      additionalIds: [playerId(a.playerId), roomId(a.roomId)]
     };
   }
 
-  if (player.roomId != null && !('oldRoom' in responses)) {
+  const player = (sts[0] as states.PlayerState) || mkDefault(states.PLAYER);
+
+
+  if (player.roomId == a.roomId) {
+    // Already in room.
     return {
-      kind: 'GET_MORE',
-      requests: {
-        player: { kind: "GET", ...playerId(a.playerId) },
-        newRoom: { kind: "GET", ...roomId(a.roomId) },
-        oldRoom: { kind: "GET", ...roomId(player.roomId) },
-      },
-    }
+      kind: 'FINISH',
+      result: { status: status.ok() },
+      updates: sts,
+    };
   }
 
-  const newRoom = getState(states.ROOM, responses.newRoom);
+  if (player.roomId != null && ids.length == 2) {
+    return {
+      kind: 'GRAFT',
+      extra: null,
+      additionalIds: [roomId(player.roomId)],
+    };
+  }
 
-  let res: any = {};
-
-  if (player.roomId != null) {
-    const oldRoom = getState(states.ROOM, responses.oldRoom);
+  const newRoom = (sts[1] as states.RoomState) || mkDefault(states.ROOM);
+  if (sts.length == 3) {
+    const oldRoom = sts[2] as states.RoomState;
 
     const playerIdx = oldRoom.players.indexOf(a.playerId);
     if (playerIdx == -1) {
       return {
         kind: 'FINISH',
-        action: a,
         result: { status: status.internal() },
-        updates: { player, newRoom, oldRoom },
+        updates: sts,
       };
     }
-    let newOldRoom: states.RoomState = {
+    const newOldRoom: states.RoomState = {
       ...oldRoom,
       players: [
         ...oldRoom.players.slice(0, playerIdx),
         ...oldRoom.players.slice(playerIdx + 1),
       ],
     };
-    res.oldRoom = newOldRoom;
+    sts[2] = newOldRoom;
   }
 
-  res.player = {
+  sts[0] = {
     ...player,
     roomId: a.roomId,
   };
 
-  res.newRoom = {
+  sts[1] = {
     ...newRoom,
     players: addUnique(newRoom.players, a.playerId),
   }
 
   return {
     kind: 'FINISH',
-    action: a,
     result: { status: status.ok() },
-    updates: res,
+    updates: sts,
   };
 }
 
-function createGameAction(a: actions.CreateGame, responses: Responses): ActorResult {
-  if (!('room' in responses)) {
+type CreateGameExtra = {
+  gameAttempts: number,
+}
+
+function createGameAction(a: actions.CreateGame, ids: Id[], sts: any[], extra: CreateGameExtra = { gameAttempts: 0 }): ActorResult {
+  console.log(ids, sts, extra);
+  const rng = new Prando(JSON.stringify(a) + ':' + extra.gameAttempts);
+  if (ids.length == 0) {
+    const extra: CreateGameExtra = { gameAttempts: 1 };
     return {
-      kind: 'GET_MORE',
-      requests: {
-        room: { kind: "GET", ...roomId(a.roomId) },
-        game: { kind: "CREATE", collection: "games" },
+      kind: "GRAFT",
+      extra,
+      additionalIds: [roomId(a.roomId), gameId(rng.nextString())],
+    }
+  }
+
+  const room = sts[0] as states.RoomState;
+  if (!room) {
+    return {
+      kind: "FINISH",
+      result: { status: status.notFound() },
+      updates: sts,
+    };
+  }
+
+  const game = sts[extra.gameAttempts] as states.GameState | null;
+  if (game != null) {
+    return {
+      kind: "GRAFT",
+      extra: { ...extra, gameAttempts: extra.gameAttempts + 1 },
+      additionalIds: [gameId(rng.nextString())],
+    }
+  }
+
+  // No players fetched
+  if (ids.length == 1 + extra.gameAttempts) {
+    return {
+      kind: "GRAFT",
+      extra,
+      additionalIds: room.players.map(playerId),
+    }
+  }
+
+  const players: states.PlayerState[] = sts.slice(1 + extra.gameAttempts);
+  if (players.length != room.players.length) {
+    throw "bad";
+  }
+
+  for (const player of players) {
+    if (player == null) {
+      return {
+        kind: "FINISH",
+        result: { status: status.internal() },
+        updates: sts,
       }
     }
   }
 
-  const room = getState(states.ROOM, responses.room);
-  const gameId = (responses.game as CreateResponse).id;
-  if (room.players.length === 0) {
-    return {
-      kind: 'FINISH',
-      action: a,
-      result: { status: status.notFound() },
-      updates: { room, game: null },
-    }
-  }
+  const newStates: any[] = [];
+  newStates.push(null);
+  newStates.push(...sts.splice(1, extra.gameAttempts - 1));
+
+  const newGame: states.GameState = {
+    kind: "GAME",
+    players: ids.slice(1 + extra.gameAttempts).map(id => id.id),
+    permutation: randperm(rng, players.length),
+  };
+  newStates.push(newGame);
+
+
+  const newPlayers: states.PlayerState[] = players.map((player): states.PlayerState => ({
+    ...player,
+    roomId: null,
+  }));
+  newStates.push(...newPlayers);
+
   return {
     kind: 'FINISH',
-    action: a,
-    result: { status: status.ok() },
-    updates: { room, game: null }
+    result: { status: status.ok(), gameId: ids[extra.gameAttempts] },
+    updates: newStates,
   };
+}
+
+
+// return a random permutation of a range (similar to randperm in Matlab)
+function randperm(rng: Prando, maxValue: number): number[] {
+  // first generate number sequence
+  var permArray = new Array(maxValue);
+  for (var i = 0; i < maxValue; i++) {
+    permArray[i] = i;
+  }
+  // draw out of the number sequence
+  for (var i = (maxValue - 1); i >= 0; --i) {
+    var randPos = Math.floor(i * rng.next());
+    var tmpStore = permArray[i];
+    permArray[i] = permArray[randPos];
+    permArray[randPos] = tmpStore;
+  }
+  return permArray;
 }
