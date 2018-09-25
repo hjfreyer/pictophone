@@ -1,0 +1,826 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`do a game 1`] = `
+Object {
+  "permutation": Array [
+    2,
+    0,
+    1,
+  ],
+  "responses": Array [
+    Array [],
+    Array [],
+    Array [],
+  ],
+}
+`;
+
+exports[`do a game 2`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      2,
+      0,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "one",
+      ],
+      Array [],
+      Array [],
+    ],
+  },
+  "views": Array [
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+    Object {
+      "state": "FIRST_PROMPT",
+    },
+    Object {
+      "state": "FIRST_PROMPT",
+    },
+  ],
+}
+`;
+
+exports[`do a game 3`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      2,
+      0,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "one",
+      ],
+      Array [
+        "ay",
+      ],
+      Array [],
+    ],
+  },
+  "views": Array [
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+    Object {
+      "state": "FIRST_PROMPT",
+    },
+  ],
+}
+`;
+
+exports[`do a game 4`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      2,
+      0,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "one",
+      ],
+      Array [
+        "ay",
+      ],
+      Array [
+        "do",
+      ],
+    ],
+  },
+  "views": Array [
+    Object {
+      "prompt": "ay",
+      "state": "RESPOND_TO_PROMPT",
+    },
+    Object {
+      "prompt": "do",
+      "state": "RESPOND_TO_PROMPT",
+    },
+    Object {
+      "prompt": "one",
+      "state": "RESPOND_TO_PROMPT",
+    },
+  ],
+}
+`;
+
+exports[`do a game 5`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      2,
+      0,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "one",
+      ],
+      Array [
+        "ay",
+        "re",
+      ],
+      Array [
+        "do",
+      ],
+    ],
+  },
+  "views": Array [
+    Object {
+      "prompt": "ay",
+      "state": "RESPOND_TO_PROMPT",
+    },
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+    Object {
+      "prompt": "one",
+      "state": "RESPOND_TO_PROMPT",
+    },
+  ],
+}
+`;
+
+exports[`do a game 6`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      2,
+      0,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "one",
+        "bee",
+      ],
+      Array [
+        "ay",
+        "re",
+      ],
+      Array [
+        "do",
+      ],
+    ],
+  },
+  "views": Array [
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+    Object {
+      "prompt": "one",
+      "state": "RESPOND_TO_PROMPT",
+    },
+  ],
+}
+`;
+
+exports[`do a game 7`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      2,
+      0,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "one",
+        "bee",
+      ],
+      Array [
+        "ay",
+        "re",
+      ],
+      Array [
+        "do",
+        "two",
+      ],
+    ],
+  },
+  "views": Array [
+    Object {
+      "prompt": "re",
+      "state": "RESPOND_TO_PROMPT",
+    },
+    Object {
+      "prompt": "two",
+      "state": "RESPOND_TO_PROMPT",
+    },
+    Object {
+      "prompt": "bee",
+      "state": "RESPOND_TO_PROMPT",
+    },
+  ],
+}
+`;
+
+exports[`do a game 8`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      2,
+      0,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "one",
+        "bee",
+      ],
+      Array [
+        "ay",
+        "re",
+        "three",
+      ],
+      Array [
+        "do",
+        "two",
+      ],
+    ],
+  },
+  "views": Array [
+    Object {
+      "prompt": "re",
+      "state": "RESPOND_TO_PROMPT",
+    },
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+    Object {
+      "prompt": "bee",
+      "state": "RESPOND_TO_PROMPT",
+    },
+  ],
+}
+`;
+
+exports[`do a game 9`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      2,
+      0,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "one",
+        "bee",
+      ],
+      Array [
+        "ay",
+        "re",
+        "three",
+      ],
+      Array [
+        "do",
+        "two",
+        "cee",
+      ],
+    ],
+  },
+  "views": Array [
+    Object {
+      "prompt": "re",
+      "state": "RESPOND_TO_PROMPT",
+    },
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+  ],
+}
+`;
+
+exports[`do a game 10`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      2,
+      0,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "one",
+        "bee",
+        "mi",
+      ],
+      Array [
+        "ay",
+        "re",
+        "three",
+      ],
+      Array [
+        "do",
+        "two",
+        "cee",
+      ],
+    ],
+  },
+  "views": Array [
+    Object {
+      "state": "GAME_OVER",
+    },
+    Object {
+      "state": "GAME_OVER",
+    },
+    Object {
+      "state": "GAME_OVER",
+    },
+  ],
+}
+`;
+
+exports[`do a round 1`] = `
+Object {
+  "permutation": Array [
+    2,
+    0,
+    1,
+  ],
+  "responses": Array [
+    Array [],
+    Array [],
+    Array [],
+  ],
+}
+`;
+
+exports[`do a round 2`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      2,
+      0,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "foo",
+      ],
+      Array [],
+      Array [],
+    ],
+  },
+  "views": Array [
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+    Object {
+      "state": "FIRST_PROMPT",
+    },
+    Object {
+      "state": "FIRST_PROMPT",
+    },
+  ],
+}
+`;
+
+exports[`do a round 3`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      2,
+      0,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "foo",
+      ],
+      Array [],
+      Array [
+        "bar",
+      ],
+    ],
+  },
+  "views": Array [
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+    Object {
+      "state": "FIRST_PROMPT",
+    },
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+  ],
+}
+`;
+
+exports[`do a round 4`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      2,
+      0,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "foo",
+      ],
+      Array [
+        "baz",
+      ],
+      Array [
+        "bar",
+      ],
+    ],
+  },
+  "views": Array [
+    Object {
+      "prompt": "baz",
+      "state": "RESPOND_TO_PROMPT",
+    },
+    Object {
+      "prompt": "bar",
+      "state": "RESPOND_TO_PROMPT",
+    },
+    Object {
+      "prompt": "foo",
+      "state": "RESPOND_TO_PROMPT",
+    },
+  ],
+}
+`;
+
+exports[`new game 1`] = `
+Object {
+  "permutation": Array [
+    2,
+    0,
+    1,
+  ],
+  "responses": Array [
+    Array [],
+    Array [],
+    Array [],
+  ],
+}
+`;
+
+exports[`permutation is always fully cyclic 1`] = `
+Object {
+  "permutation": Array [
+    0,
+    2,
+    1,
+  ],
+  "responses": Array [
+    Array [],
+    Array [],
+    Array [],
+  ],
+}
+`;
+
+exports[`permutation is always fully cyclic 2`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      0,
+      2,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "ay",
+      ],
+      Array [],
+      Array [],
+    ],
+  },
+  "views": Array [
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+    Object {
+      "state": "FIRST_PROMPT",
+    },
+    Object {
+      "state": "FIRST_PROMPT",
+    },
+  ],
+}
+`;
+
+exports[`permutation is always fully cyclic 3`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      0,
+      2,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "ay",
+      ],
+      Array [
+        "do",
+      ],
+      Array [],
+    ],
+  },
+  "views": Array [
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+    Object {
+      "state": "FIRST_PROMPT",
+    },
+  ],
+}
+`;
+
+exports[`permutation is always fully cyclic 4`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      0,
+      2,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "ay",
+      ],
+      Array [
+        "do",
+      ],
+      Array [
+        "one",
+      ],
+    ],
+  },
+  "views": Array [
+    Object {
+      "prompt": "one",
+      "state": "RESPOND_TO_PROMPT",
+    },
+    Object {
+      "prompt": "ay",
+      "state": "RESPOND_TO_PROMPT",
+    },
+    Object {
+      "prompt": "do",
+      "state": "RESPOND_TO_PROMPT",
+    },
+  ],
+}
+`;
+
+exports[`permutation is always fully cyclic 5`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      0,
+      2,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "ay",
+      ],
+      Array [
+        "do",
+      ],
+      Array [
+        "one",
+        "re",
+      ],
+    ],
+  },
+  "views": Array [
+    Object {
+      "prompt": "one",
+      "state": "RESPOND_TO_PROMPT",
+    },
+    Object {
+      "prompt": "ay",
+      "state": "RESPOND_TO_PROMPT",
+    },
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+  ],
+}
+`;
+
+exports[`permutation is always fully cyclic 6`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      0,
+      2,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "ay",
+        "two",
+      ],
+      Array [
+        "do",
+      ],
+      Array [
+        "one",
+        "re",
+      ],
+    ],
+  },
+  "views": Array [
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+    Object {
+      "prompt": "ay",
+      "state": "RESPOND_TO_PROMPT",
+    },
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+  ],
+}
+`;
+
+exports[`permutation is always fully cyclic 7`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      0,
+      2,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "ay",
+        "two",
+      ],
+      Array [
+        "do",
+        "bee",
+      ],
+      Array [
+        "one",
+        "re",
+      ],
+    ],
+  },
+  "views": Array [
+    Object {
+      "prompt": "re",
+      "state": "RESPOND_TO_PROMPT",
+    },
+    Object {
+      "prompt": "two",
+      "state": "RESPOND_TO_PROMPT",
+    },
+    Object {
+      "prompt": "bee",
+      "state": "RESPOND_TO_PROMPT",
+    },
+  ],
+}
+`;
+
+exports[`permutation is always fully cyclic 8`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      0,
+      2,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "ay",
+        "two",
+      ],
+      Array [
+        "do",
+        "bee",
+        "three",
+      ],
+      Array [
+        "one",
+        "re",
+      ],
+    ],
+  },
+  "views": Array [
+    Object {
+      "prompt": "re",
+      "state": "RESPOND_TO_PROMPT",
+    },
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+    Object {
+      "prompt": "bee",
+      "state": "RESPOND_TO_PROMPT",
+    },
+  ],
+}
+`;
+
+exports[`permutation is always fully cyclic 9`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      0,
+      2,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "ay",
+        "two",
+      ],
+      Array [
+        "do",
+        "bee",
+        "three",
+      ],
+      Array [
+        "one",
+        "re",
+        "cee",
+      ],
+    ],
+  },
+  "views": Array [
+    Object {
+      "prompt": "re",
+      "state": "RESPOND_TO_PROMPT",
+    },
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+    Object {
+      "state": "WAITING_FOR_OTHERS",
+    },
+  ],
+}
+`;
+
+exports[`permutation is always fully cyclic 10`] = `
+Object {
+  "game": Object {
+    "permutation": Array [
+      0,
+      2,
+      1,
+    ],
+    "responses": Array [
+      Array [
+        "ay",
+        "two",
+        "mi",
+      ],
+      Array [
+        "do",
+        "bee",
+        "three",
+      ],
+      Array [
+        "one",
+        "re",
+        "cee",
+      ],
+    ],
+  },
+  "views": Array [
+    Object {
+      "state": "GAME_OVER",
+    },
+    Object {
+      "state": "GAME_OVER",
+    },
+    Object {
+      "state": "GAME_OVER",
+    },
+  ],
+}
+`;
