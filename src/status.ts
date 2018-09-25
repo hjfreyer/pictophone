@@ -1,7 +1,7 @@
 
 export interface Status {
   type: 'STATUS';
-  code: 'OK' | 'ALREADY_EXISTS' | 'NOT_FOUND' | 'INTERNAL';
+  code: 'OK' | 'ALREADY_EXISTS' | 'NOT_FOUND' | 'INTERNAL' | 'PRECONDITION_FAILED';
   message?: string;
 }
 
@@ -19,6 +19,10 @@ export function notFound(): Status {
 
 export function alreadyExists(): Status {
   return { type: 'STATUS', code: 'ALREADY_EXISTS' };
+}
+
+export function preconditionFailed(): Status {
+  return { type: 'STATUS', code: 'PRECONDITION_FAILED' };
 }
 
 export function internal(): Status {
