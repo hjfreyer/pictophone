@@ -1,5 +1,5 @@
-import * as base from '../src/base';
-import * as status from '../src/status';
+import * as base from '../src/framework/base';
+import * as status from 'status';
 
 export class Datastore implements base.DB {
   data: Map<string, any> = new Map();

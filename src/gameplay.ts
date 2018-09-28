@@ -1,5 +1,5 @@
 
-import * as status from './status';
+import * as status from 'status';
 import produce from "immer";
 import * as immer from "immer";
 

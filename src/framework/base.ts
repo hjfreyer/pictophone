@@ -1,4 +1,4 @@
-import * as status from './status';
+import * as status from 'status';
 
 export type Action = {
   action: string
