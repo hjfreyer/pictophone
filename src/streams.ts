@@ -1,21 +1,8 @@
 import * as actions from './actions';
 import * as status from './status';
-import * as states from './states';
+import * as model from './model';
 import * as base from './base';
 import Prando from 'prando';
-
-function mkDefault<K extends states.Kind>(k: K): states.ForKind<K> {
-  const defaults: { [K in states.Kind]: states.ForKind<K> } = {
-    [states.ROOM]: { kind: states.ROOM, players: [] },
-    [states.PLAYER]: { kind: states.PLAYER, roomId: null },
-    [states.GAME]: {
-      kind: states.GAME,
-      players: [],
-      permutation: [],
-    },
-  };
-  return defaults[k];
-}
 
 function addUnique(arr: string[], val: string): string[] {
   return arr.indexOf(val) == -1 ? [...arr, val] : arr;
@@ -44,56 +31,56 @@ export function gameId(id: string): string {
   return `games/${id}`;
 }
 
-function joinRoomAction(a: actions.JoinRoom, timeMillis: number, sts: base.States): base.ActorResult {
+function joinRoomAction(a: actions.JoinRoom, timeMillis: number, states: base.States): base.ActorResult {
   const playerKey = playerId(a.playerId);
   const newRoomKey = roomId(a.roomId);
-  if (!(playerKey in sts)) {
+  if (!(playerKey in states)) {
     return base.graft(playerKey, newRoomKey);
   }
 
-  const player = (sts[playerKey] as states.PlayerState) || mkDefault(states.PLAYER);
+  const player = (states[playerKey] as model.PlayerState) || model.mkDefault(model.PLAYER);
   if (player.roomId == a.roomId) {
     // Already in room.
     return {
       kind: 'FINISH',
       result: { status: status.ok() },
-      updates: sts,
+      updates: states,
     };
   }
 
-  if (player.roomId != null && !(roomId(player.roomId) in sts)) {
+  if (player.roomId != null && !(roomId(player.roomId) in states)) {
     return base.graft(roomId(player.roomId));
   }
 
   if (player.roomId != null) {
-    const oldRoom = sts[roomId(player.roomId)] as states.RoomState;
+    const oldRoom = states[roomId(player.roomId)] as model.RoomState;
 
     const playerIdx = oldRoom.players.indexOf(a.playerId);
     if (playerIdx == -1) {
       return {
         kind: 'FINISH',
         result: { status: status.internal() },
-        updates: sts,
+        updates: states,
       };
     }
-    const newOldRoom: states.RoomState = {
+    const newOldRoom: model.RoomState = {
       ...oldRoom,
       players: [
         ...oldRoom.players.slice(0, playerIdx),
         ...oldRoom.players.slice(playerIdx + 1),
       ],
     };
-    sts[roomId(player.roomId)] = newOldRoom;
+    states[roomId(player.roomId)] = newOldRoom;
   }
 
-  const newRoom = (sts[newRoomKey] as states.RoomState) || mkDefault(states.ROOM);
+  const newRoom = (states[newRoomKey] as model.RoomState) || model.mkDefault(model.ROOM);
 
-  sts[playerKey] = {
+  states[playerKey] = {
     ...player,
     roomId: a.roomId,
   };
 
-  sts[newRoomKey] = {
+  states[newRoomKey] = {
     ...newRoom,
     players: addUnique(newRoom.players, a.playerId),
   }
@@ -101,76 +88,76 @@ function joinRoomAction(a: actions.JoinRoom, timeMillis: number, sts: base.State
   return {
     kind: 'FINISH',
     result: { status: status.ok() },
-    updates: sts,
+    updates: states,
   };
 }
 
 
-function createGameAction(a: actions.CreateGame, timeMillis: number, sts: base.States): base.ActorResult {
+function createGameAction(a: actions.CreateGame, timeMillis: number, states: base.States): base.ActorResult {
   const rng = new Prando(`${JSON.stringify(a)}:${timeMillis}`);
 
   const roomKey = roomId(a.roomId);
   let gameKey = gameId(rng.nextString());
-  if (!(roomKey in sts)) {
+  if (!(roomKey in states)) {
     return base.graft(roomKey, gameKey);
   }
 
-  const room = sts[roomKey] as states.RoomState;
+  const room = states[roomKey] as model.RoomState;
   if (room === null) {
     return {
       kind: "FINISH",
       result: { status: status.notFound() },
-      updates: sts,
+      updates: states,
     };
   }
 
   while (true) {
     console.log(gameKey);
-    if (sts[gameKey] === null) { break; }
+    if (states[gameKey] === null) { break; }
     gameKey = gameId(rng.nextString());
-    if (!(gameKey in sts)) {
+    if (!(gameKey in states)) {
       return base.graft(gameKey);
     }
   }
 
   // No players fetched
   const playerKeys = room.players.map(playerId);
-  if (!(playerKeys[0] in sts)) {
+  if (!(playerKeys[0] in states)) {
     return base.graft(...playerKeys);
   }
 
-  const players: states.PlayerState[] = playerKeys.map(key => sts[key]);
+  const players: model.PlayerState[] = playerKeys.map(key => states[key]);
 
   for (const player of players) {
     if (player == null) {
       return {
         kind: "FINISH",
         result: { status: status.internal() },
-        updates: sts,
+        updates: states,
       }
     }
   }
 
-  sts[roomKey] = null;
-  const newGame: states.GameState = {
+  states[roomKey] = null;
+  const newGame: model.GameState = {
     kind: "GAME",
     players: room.players,
     permutation: randperm(rng, players.length),
   };
-  sts[gameKey] = newGame;
+  states[gameKey] = newGame;
 
   for (const playerKey of playerKeys) {
-    const newPlayer: states.PlayerState = {
-      ...sts[playerKey],
+    const newPlayer: model.PlayerState = {
+      ...states[playerKey],
       roomId: null,
     };
-    sts[playerKey] = newPlayer;
+    states[playerKey] = newPlayer;
   }
 
   return {
     kind: 'FINISH',
     result: { status: status.ok(), gameId: gameKey },
-    updates: sts,
+    updates: states,
   };
 }
 

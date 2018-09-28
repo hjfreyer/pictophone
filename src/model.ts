@@ -52,3 +52,16 @@ export type Update<S extends State> = {
   id: Id<S['kind']>;
   state: S;
 }
+
+export function mkDefault<K extends Kind>(k: K): ForKind<K> {
+  const defaults: { [K in Kind]: ForKind<K> } = {
+    [ROOM]: { kind: ROOM, players: [] },
+    [PLAYER]: { kind: PLAYER, roomId: null },
+    [GAME]: {
+      kind: GAME,
+      players: [],
+      permutation: [],
+    },
+  };
+  return defaults[k];
+}
