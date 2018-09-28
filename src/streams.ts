@@ -21,42 +21,37 @@ function addUnique(arr: string[], val: string): string[] {
   return arr.indexOf(val) == -1 ? [...arr, val] : arr;
 }
 
-export function actor2(actionStr: string, ids: base.Id[], states: any[], extra?: any): base.ActorResult {
-  const action = JSON.parse(actionStr) as actions.Action;
+export function actor2(action: base.Action, states: base.States): base.ActorResult {
+  const parsedAction = JSON.parse(action.action) as actions.Action;
 
-  switch (action.kind) {
+  switch (parsedAction.kind) {
     case actions.JOIN_ROOM:
-      return joinRoomAction(action, extra, ids, states);
+      return joinRoomAction(parsedAction, action.timeMillis, states);
     case actions.CREATE_GAME:
-      return createGameAction(action, ids, states, extra);
+      return createGameAction(parsedAction, action.timeMillis, states);
   }
 }
 
-export function playerId(id: string): base.Id {
-  return { collection: "players", id };
+export function playerId(id: string): string {
+  return `players/${id}`;
 }
 
-export function roomId(id: string): base.Id {
-  return { collection: "rooms", id };
+export function roomId(id: string): string {
+  return `rooms/${id}`;
 }
 
-export function gameId(id: string): base.Id {
-  return { collection: "games", id };
+export function gameId(id: string): string {
+  return `games/${id}`;
 }
 
-function joinRoomAction(a: actions.JoinRoom, extra: any,
-  ids: base.Id[], sts: any[]): base.ActorResult {
-  if (ids.length == 0) {
-    return {
-      kind: "GRAFT",
-      extra: null,
-      additionalIds: [playerId(a.playerId), roomId(a.roomId)]
-    };
+function joinRoomAction(a: actions.JoinRoom, timeMillis: number, sts: base.States): base.ActorResult {
+  const playerKey = playerId(a.playerId);
+  const newRoomKey = roomId(a.roomId);
+  if (!(playerKey in sts)) {
+    return base.graft(playerKey, newRoomKey);
   }
 
-  const player = (sts[0] as states.PlayerState) || mkDefault(states.PLAYER);
-
-
+  const player = (sts[playerKey] as states.PlayerState) || mkDefault(states.PLAYER);
   if (player.roomId == a.roomId) {
     // Already in room.
     return {
@@ -66,17 +61,12 @@ function joinRoomAction(a: actions.JoinRoom, extra: any,
     };
   }
 
-  if (player.roomId != null && ids.length == 2) {
-    return {
-      kind: 'GRAFT',
-      extra: null,
-      additionalIds: [roomId(player.roomId)],
-    };
+  if (player.roomId != null && !(roomId(player.roomId) in sts)) {
+    return base.graft(roomId(player.roomId));
   }
 
-  const newRoom = (sts[1] as states.RoomState) || mkDefault(states.ROOM);
-  if (sts.length == 3) {
-    const oldRoom = sts[2] as states.RoomState;
+  if (player.roomId != null) {
+    const oldRoom = sts[roomId(player.roomId)] as states.RoomState;
 
     const playerIdx = oldRoom.players.indexOf(a.playerId);
     if (playerIdx == -1) {
@@ -93,15 +83,17 @@ function joinRoomAction(a: actions.JoinRoom, extra: any,
         ...oldRoom.players.slice(playerIdx + 1),
       ],
     };
-    sts[2] = newOldRoom;
+    sts[roomId(player.roomId)] = newOldRoom;
   }
 
-  sts[0] = {
+  const newRoom = (sts[newRoomKey] as states.RoomState) || mkDefault(states.ROOM);
+
+  sts[playerKey] = {
     ...player,
     roomId: a.roomId,
   };
 
-  sts[1] = {
+  sts[newRoomKey] = {
     ...newRoom,
     players: addUnique(newRoom.players, a.playerId),
   }
@@ -113,24 +105,18 @@ function joinRoomAction(a: actions.JoinRoom, extra: any,
   };
 }
 
-type CreateGameExtra = {
-  gameAttempts: number,
-}
 
-function createGameAction(a: actions.CreateGame, ids: base.Id[], sts: any[], extra: CreateGameExtra = { gameAttempts: 0 }): base.ActorResult {
-  console.log(ids, sts, extra);
-  const rng = new Prando(JSON.stringify(a) + ':' + extra.gameAttempts);
-  if (ids.length == 0) {
-    const extra: CreateGameExtra = { gameAttempts: 1 };
-    return {
-      kind: "GRAFT",
-      extra,
-      additionalIds: [roomId(a.roomId), gameId(rng.nextString())],
-    }
+function createGameAction(a: actions.CreateGame, timeMillis: number, sts: base.States): base.ActorResult {
+  const rng = new Prando(`${JSON.stringify(a)}:${timeMillis}`);
+
+  const roomKey = roomId(a.roomId);
+  let gameKey = gameId(rng.nextString());
+  if (!(roomKey in sts)) {
+    return base.graft(roomKey, gameKey);
   }
 
-  const room = sts[0] as states.RoomState;
-  if (!room) {
+  const room = sts[roomKey] as states.RoomState;
+  if (room === null) {
     return {
       kind: "FINISH",
       result: { status: status.notFound() },
@@ -138,28 +124,22 @@ function createGameAction(a: actions.CreateGame, ids: base.Id[], sts: any[], ext
     };
   }
 
-  const game = sts[extra.gameAttempts] as states.GameState | null;
-  if (game != null) {
-    return {
-      kind: "GRAFT",
-      extra: { ...extra, gameAttempts: extra.gameAttempts + 1 },
-      additionalIds: [gameId(rng.nextString())],
+  while (true) {
+    console.log(gameKey);
+    if (sts[gameKey] === null) { break; }
+    gameKey = gameId(rng.nextString());
+    if (!(gameKey in sts)) {
+      return base.graft(gameKey);
     }
   }
 
   // No players fetched
-  if (ids.length == 1 + extra.gameAttempts) {
-    return {
-      kind: "GRAFT",
-      extra,
-      additionalIds: room.players.map(playerId),
-    }
+  const playerKeys = room.players.map(playerId);
+  if (!(playerKeys[0] in sts)) {
+    return base.graft(...playerKeys);
   }
 
-  const players: states.PlayerState[] = sts.slice(1 + extra.gameAttempts);
-  if (players.length != room.players.length) {
-    throw "bad";
-  }
+  const players: states.PlayerState[] = playerKeys.map(key => sts[key]);
 
   for (const player of players) {
     if (player == null) {
@@ -171,28 +151,26 @@ function createGameAction(a: actions.CreateGame, ids: base.Id[], sts: any[], ext
     }
   }
 
-  const newStates: any[] = [];
-  newStates.push(null);
-  newStates.push(...sts.splice(1, extra.gameAttempts - 1));
-
+  sts[roomKey] = null;
   const newGame: states.GameState = {
     kind: "GAME",
-    players: ids.slice(1 + extra.gameAttempts).map(id => id.id),
+    players: room.players,
     permutation: randperm(rng, players.length),
   };
-  newStates.push(newGame);
+  sts[gameKey] = newGame;
 
-
-  const newPlayers: states.PlayerState[] = players.map((player): states.PlayerState => ({
-    ...player,
-    roomId: null,
-  }));
-  newStates.push(...newPlayers);
+  for (const playerKey of playerKeys) {
+    const newPlayer: states.PlayerState = {
+      ...sts[playerKey],
+      roomId: null,
+    };
+    sts[playerKey] = newPlayer;
+  }
 
   return {
     kind: 'FINISH',
-    result: { status: status.ok(), gameId: ids[extra.gameAttempts] },
-    updates: newStates,
+    result: { status: status.ok(), gameId: gameKey },
+    updates: sts,
   };
 }
 

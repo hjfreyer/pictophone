@@ -1,57 +1,50 @@
 import * as status from './status';
 
-export type Id = {
-  collection: string;
-  id: string;
+export type Action = {
+  action: string
+  timeMillis: number
 }
+
+export type States = { [id: string]: any };
 
 export interface DB {
-  get(id: Id): any | null;
-  update(updates: Update[]): status.Status;
-}
-
-export type Update = {
-  collection: string;
-  id: string;
-  state: any;
+  get(id: string): any | null;
+  update(updates: States): status.Status;
 }
 
 type Graft = {
   kind: 'GRAFT';
-  additionalIds: Id[];
-  extra: any;
+  additionalIds: string[];
 };
+
+export function graft(...additionalIds: string[]): Graft {
+  return { kind: 'GRAFT', additionalIds };
+}
 
 type Finish = {
   kind: 'FINISH';
   result: any;
-  updates: any[];
+  updates: States;
 };
 
 export type ActorResult = Graft | Finish;
-type Actor = (action: string, ids: Id[], states: any[], extra?: any) => ActorResult;
+type Actor = (action: Action, states: States) => ActorResult;
 
-export function apply(db: DB, actor: Actor, action: string): any {
-  let ids: Id[] = [];
-  let states: any[] = [];
-  let extra: any | undefined;
+export function apply(db: DB, actor: Actor, action: Action): any {
+  const states: States = {};
 
   while (true) {
-    const res = actor(action, [...ids], [...states], extra);
+    const res = actor(action, { ...states });
     if (res.kind == "FINISH") {
-      const updates: Update[] = ids.map((id, idx) => ({
-        ...id,
-        state: res.updates[idx],
-      }));
-      const s = db.update(updates);
+      const s = db.update(res.updates);
       if (!status.isOk(s)) {
         throw 'errr what?';
       }
       return res.result;
     }
 
-    ids = [...ids, ...res.additionalIds];
-    states = [...states, ...res.additionalIds.map(id => db.get(id))];
-    extra = res.extra;
+    res.additionalIds.forEach(id => {
+      states[id] = db.get(id)
+    });
   }
 }

@@ -4,15 +4,13 @@ import * as status from '../src/status';
 export class Datastore implements base.DB {
   data: Map<string, any> = new Map();
 
-  get({ collection, id }: base.Id): any | null {
-    const key = `${collection}/${id}`;
-    return this.data.get(key) || null;
+  get(id: string): any | null {
+    return this.data.get(id) || null;
   }
 
-  update(mutations: base.Update[]): status.Status {
-    for (const mutation of mutations) {
-      const key = `${mutation.collection}/${mutation.id}`;
-      this.data.set(key, mutation.state);
+  update(mutations: base.States): status.Status {
+    for (const id in mutations) {
+      this.data.set(id, mutations[id]);
     }
     return status.ok();
   }
