@@ -12,7 +12,6 @@ function snapshotTest(permutation: number[], actions: Functor[]): () => void {
     expect(g).toMatchSnapshot();
     for (const action of actions) {
       let s: status.Status;
-      console.log(action(g));
       [s, g] = action(g);
       expect(s).toEqual(status.ok());
       const views = g.permutation.map((_, idx) => gp.project(g, idx));

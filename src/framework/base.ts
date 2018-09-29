@@ -1,4 +1,5 @@
 import * as status from 'status';
+import { BehaviorSubject, Observable, Subscription } from 'rxjs';
 
 export type Action = {
   action: string
@@ -28,7 +29,7 @@ type Finish = {
 };
 
 export type ActorResult = Graft | Finish;
-type Actor = (action: Action, states: States) => ActorResult;
+export type Actor = (action: Action, states: States) => ActorResult;
 
 export function apply(db: DB, actor: Actor, action: Action): any {
   const states: States = {};
@@ -47,4 +48,11 @@ export function apply(db: DB, actor: Actor, action: Action): any {
       states[id] = db.get(id)
     });
   }
+}
+
+export type SystemFactory = (a: Actor) => System
+
+export interface System {
+  enqueue(action: string): Promise<any>
+  listen(id: string): Observable<any>
 }
