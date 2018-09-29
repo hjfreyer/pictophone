@@ -2,7 +2,7 @@
 import * as actions from '../src/actions';
 import * as fake_ds from './fake_ds';
 import * as status from 'status';
-import * as base from '../src/framework/base';
+import * as base from 'knit';
 import * as streams from '../src/streams';
 import * as model from '../src/model';
 import { roomId, playerId, gameId } from '../src/streams';

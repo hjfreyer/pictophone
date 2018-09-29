@@ -1,7 +1,7 @@
 import * as actions from './actions';
 import * as status from 'status';
 import * as model from './model';
-import * as base from './framework/base';
+import * as base from 'knit';
 import Prando from 'prando';
 
 function addUnique(arr: string[], val: string): string[] {

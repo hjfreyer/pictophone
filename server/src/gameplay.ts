@@ -1,6 +1,5 @@
 
 import * as status from 'status';
-import produce from "immer";
 import * as immer from "immer";
 
 export type Game = Readonly<{
@@ -37,7 +36,7 @@ function _submit(g: immer.DraftObject<Game>, player: number, word: string): Game
 
 export function submit(g: Game, player: number, word: string): [status.Status, Game] {
   try {
-    const g2 = produce(g, g => _submit(g, player, word));
+    const g2 = immer.produce(g, g => _submit(g, player, word));
     return [status.ok(), g2];
   } catch (s) {
     return [s as status.Status, g];

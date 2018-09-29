@@ -34,6 +34,7 @@
     "js-sha256": "^0.9.0",
     "prando": "^3.0.3",
     "rxjs": "^6.3.3",
-    "status": "file:../status"
+    "status": "file:../../status",
+    "knit": "file:../knit"
   }
 }

@@ -1,4 +1,4 @@
-import * as base from '../src/framework/base';
+import * as base from 'knit';
 import * as status from 'status';
 
 export class Datastore implements base.DB {
