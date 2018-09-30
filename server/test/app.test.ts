@@ -11,15 +11,16 @@ let ds: fake_ds.Datastore;
 const [p1, p2, p3, p4, p5] = 'p1,p2,p3,p4,p5'.split(',').map(playerId);
 const [r1, r2] = 'r1,r2'.split(',').map(roomId);
 
-beforeEach(() => {
-  ds = new fake_ds.Datastore();
-});
-
-let timeMillis = 1000;
+let timeMillis: number;
 function doAction(a: actions.Action): any {
   timeMillis++;
   return base.apply(ds, streams.actor2, { action: JSON.stringify(a), timeMillis });
 }
+
+beforeEach(() => {
+  timeMillis = 1000;
+  ds = new fake_ds.Datastore();
+});
 
 function expectAction(a: actions.Action): jest.Matchers<status.Status> {
   return expect(doAction(a).status);
@@ -136,7 +137,7 @@ describe('create game', () => {
       kind: model.PLAYER,
       room: '',
     });
-    expect(res.gameId).toEqual(gameId('oTaxL2lLrlTQzNVA'));
+    expect(res.gameId).toEqual(gameId('V0PbCfSD2t6xJip9'));
     expect(ds.get(res.gameId)).toEqual({
       kind: model.GAME,
       permutation: [1, 0],
@@ -157,7 +158,7 @@ describe('create game', () => {
 
     const res = doAction(actions.createGame(r1));
     expect(res.status).toEqual(status.ok());
-    expect(res.gameId).toEqual(gameId('U9mBGCVUaWD5uPE9'));
+    expect(res.gameId).toEqual(gameId('KcdedALemq5J4wyS'));
     expect(ds.get(res.gameId)).toEqual({
       kind: model.GAME,
       permutation: [2, 0, 1],
