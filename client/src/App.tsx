@@ -1,14 +1,13 @@
-import * as React from 'react';
-import './App.css';
-
+import * as knit from 'knit';
+import { local } from 'knit';
 import * as pictophone from 'pictophone';
 import { model } from 'pictophone';
-import * as knit from 'knit';
-import {local} from 'knit';
-
-import logo from './logo.svg';
+import * as React from 'react';
 import * as rx from 'rxjs';
 import * as rxop from 'rxjs/operators';
+import './App.css';
+import Game from './Game';
+import logo from './logo.svg';
 
 interface State {
   playerId: string;
@@ -17,6 +16,7 @@ interface State {
   player?: pictophone.model.PlayerState;
   room?: pictophone.model.RoomState;
   game?: model.GameState;
+  games: { name: string, view: pictophone.gameplay.PlayerView }[];
 };
 
 interface Ids {
@@ -59,16 +59,29 @@ class App extends React.Component<{}, State> {
     });
 
     const player: rx.Observable<model.PlayerState> = this.ids.player.pipe(
-      rxop.tap(id => console.log('id', id)),
       rxop.switchMap(id => this.local.listen('players/' + id)),
-      rxop.tap(id => console.log('model', id))
+      rxop.map(x => JSON.parse(x) as model.PlayerState),
     )
     const room: rx.Observable<model.RoomState> = this.ids.room.pipe(
-      rxop.switchMap(id => this.local.listen('rooms/' + id))
+      rxop.switchMap(id => this.local.listen('rooms/' + id)),
+      rxop.map(x => JSON.parse(x) as model.RoomState),
     )
     const game: rx.Observable<model.GameState> = this.ids.game.pipe(
-      rxop.switchMap(id => this.local.listen(id))
+      rxop.switchMap(id => this.local.listen(id)),
+      rxop.map(x => JSON.parse(x) as model.GameState),
     )
+    this.ids.player.pipe(
+      rxop.switchMap(id => this.local.list(`players/${id}/games/`)),
+      rxop.switchMap(
+        gids => rx.combineLatest(gids.map(gid =>
+          this.local.listen(gid).pipe(
+            rxop.map(gstate => JSON.parse(gstate) as model.PlayerGameView),
+            rxop.tap(x => console.log('view', typeof (x))),
+            rxop.map(gstate => ({ name: gid, view: gstate.view }))
+          )))
+      )
+    ).subscribe(games => this.setState({ games }));
+
     //    this.stateSubjs = { player, room };
     player.subscribe(player => this.setState({ player }));
     room.subscribe(room => this.setState({ room }))
@@ -88,17 +101,23 @@ class App extends React.Component<{}, State> {
         </header>
         <section>
           <h3>PlayerInfo</h3>
-          <pre>{this.state.player}</pre>
+          <pre>{JSON.stringify(this.state.player)}</pre>
         </section>
         <section>
           <h3>RoomInfo</h3>
-          <pre>{this.state.room}</pre>
+          <pre>{JSON.stringify(this.state.room)}</pre>
           <input value={this.ids.room.getValue()} onChange={u => this.setId('room', u.target.value)} />
           <button onClick={_e => this.mkRoom()}>Join Room {this.state.roomId}</button>
           <button onClick={_e => this.createGame()}>Create Game from {this.state.roomId}</button>
         </section>
         <section>
-          <pre>{this.state.game}</pre>
+          <pre>{JSON.stringify(this.state.game)}</pre>
+        </section>
+        <section>
+          <h3>Da games</h3>
+          {this.state.games.map(g =>
+            <Game key={g.name} name={g.name} view={g.view} dispatch={() => null} />
+          )}
         </section>
         <p className="App-intro">
           To get started, edit <code>src/App.tsx</code> and save to reload.
@@ -109,14 +128,14 @@ class App extends React.Component<{}, State> {
   mkRoom() {
     this.local.enqueue(JSON.stringify({
       kind: 'JOIN_ROOM',
-      roomId: this.state.roomId,
-      playerId: this.state.playerId,
+      room: 'rooms/' + this.state.roomId,
+      player: 'players/' + this.state.playerId,
     })).then(console.log);
   }
   createGame() {
     this.local.enqueue(JSON.stringify({
       kind: 'CREATE_GAME',
-      roomId: this.state.roomId,
+      room: 'rooms/' + this.state.roomId,
     })).then(res => {
       this.ids.game.next(res.gameId)
     });

@@ -54,5 +54,6 @@ export type SystemFactory = (a: Actor) => System
 
 export interface System {
   enqueue(action: string): Promise<any>
-  listen(id: string): Observable<any>
+  listen(id: string): Observable<string>
+  list(collectionId: string): Observable<string[]>
 }
