@@ -1,8 +1,11 @@
+
+import Prando from 'prando';
+
 import * as actions from './actions';
 import * as status from 'status';
 import * as model from './model';
 import * as base from 'knit';
-import Prando from 'prando';
+import * as gp from './gameplay';
 
 export function actor2(action: base.Action, states: base.States): base.ActorResult {
   const parsedAction = JSON.parse(action.action) as actions.Action;
@@ -132,13 +135,19 @@ function createGameAction(a: actions.CreateGame, timeMillis: number, states: bas
   };
   states[gameName] = newGame;
 
-  for (const playerName of room.players) {
+  room.players.forEach((playerName, idx) => {
     const newPlayer: model.PlayerState = {
       ...states[playerName],
       room: '',
     };
     states[playerName] = newPlayer;
-  }
+
+    const viewState: model.PlayerGameView = {
+      kind: "PLAYER_GAME_VIEW",
+      view: gp.project(gp.newGame(newGame.permutation), idx),
+    }
+    states[model.playerGameViewId(playerName, gameName)] = viewState;
+  });
 
   return {
     kind: 'FINISH',
@@ -146,7 +155,6 @@ function createGameAction(a: actions.CreateGame, timeMillis: number, states: bas
     updates: states,
   };
 }
-
 
 // return a random permutation of a range (similar to randperm in Matlab)
 function randperm(rng: Prando, maxValue: number): number[] {

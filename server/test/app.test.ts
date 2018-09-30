@@ -175,6 +175,14 @@ describe('create game', () => {
       permutation: [1, 0],
       players: [p1, p2],
     });
+    expect(ds.get(model.playerGameViewId(p1, res.gameId))).toEqual({
+      kind: "PLAYER_GAME_VIEW",
+      view: { state: "FIRST_PROMPT" },
+    });
+    expect(ds.get(model.playerGameViewId(p2, res.gameId))).toEqual({
+      kind: "PLAYER_GAME_VIEW",
+      view: { state: "FIRST_PROMPT" },
+    });
   });
 
   test('games from same room dont collide', () => {
@@ -197,4 +205,16 @@ describe('create game', () => {
       players: [p3, p4, p5],
     });
   });
+});
+
+describe('gameplay', () => {
+  beforeEach(() => {
+    expectAction(actions.joinRoom(p1, r1)).toEqual(status.ok());
+    expectAction(actions.joinRoom(p2, r1)).toEqual(status.ok());
+    expectAction(actions.joinRoom(p3, r1)).toEqual(status.ok());
+    expectAction(actions.createGame(r1)).toEqual(status.ok());
+  });
+
+  test('trivial', () => {
+  })
 });

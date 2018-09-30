@@ -1,4 +1,6 @@
 
+import * as gp from './gameplay';
+
 export const ROOM = 'ROOM';
 export type ROOM = typeof ROOM;
 interface StateMap { [ROOM]: RoomState; }
@@ -28,6 +30,18 @@ export type PlayerState = {
   // If the empty string, indicates the player isn't in a room. Otherwise, the
   // name of a room.
   room: string;
+};
+
+export const PLAYER_GAME_VIEW = 'PLAYER_GAME_VIEW';
+export type PLAYER_GAME_VIEW = typeof PLAYER_GAME_VIEW;
+
+export function playerGameViewId(player: string, game: string): string {
+  return `${player}/${game}`;
+}
+
+export type PlayerGameView = {
+  kind: PLAYER_GAME_VIEW;
+  view: gp.PlayerView;
 };
 
 export const GAME = 'GAME';
