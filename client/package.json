@@ -2,6 +2,7 @@
   "name": "pictophone-client",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "dependencies": {
     "pictophone": "file:../pictophone",
     "react": "^16.5.2",
