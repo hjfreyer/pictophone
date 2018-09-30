@@ -5,11 +5,10 @@ import * as status from 'status';
 import * as base from 'knit';
 import * as streams from '../src/streams';
 import * as model from '../src/model';
-import { roomId, playerId, gameId } from '../src/streams';
 
 let ds: fake_ds.Datastore;
-const [p1, p2, p3, p4, p5] = 'p1,p2,p3,p4,p5'.split(',').map(playerId);
-const [r1, r2] = 'r1,r2'.split(',').map(roomId);
+const [p1, p2, p3, p4, p5] = 'p1,p2,p3,p4,p5'.split(',').map(model.playerId);
+const [r1, r2] = 'r1,r2'.split(',').map(model.roomId);
 
 let timeMillis: number;
 function doAction(a: actions.Action): any {
@@ -170,7 +169,7 @@ describe('create game', () => {
       kind: model.PLAYER,
       room: '',
     });
-    expect(res.gameId).toEqual(gameId('V0PbCfSD2t6xJip9'));
+    expect(res.gameId).toEqual(model.gameId('V0PbCfSD2t6xJip9'));
     expect(ds.get(res.gameId)).toEqual({
       kind: model.GAME,
       permutation: [1, 0],
@@ -191,7 +190,7 @@ describe('create game', () => {
 
     const res = doAction(actions.createGame(r1));
     expect(res.status).toEqual(status.ok());
-    expect(res.gameId).toEqual(gameId('KcdedALemq5J4wyS'));
+    expect(res.gameId).toEqual(model.gameId('KcdedALemq5J4wyS'));
     expect(ds.get(res.gameId)).toEqual({
       kind: model.GAME,
       permutation: [2, 0, 1],

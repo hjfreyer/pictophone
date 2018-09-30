@@ -4,10 +4,6 @@ import * as model from './model';
 import * as base from 'knit';
 import Prando from 'prando';
 
-function addUnique(arr: string[], val: string): string[] {
-  return arr.indexOf(val) == -1 ? [...arr, val] : arr;
-}
-
 export function actor2(action: base.Action, states: base.States): base.ActorResult {
   const parsedAction = JSON.parse(action.action) as actions.Action;
 
@@ -17,18 +13,6 @@ export function actor2(action: base.Action, states: base.States): base.ActorResu
     case actions.CREATE_GAME:
       return createGameAction(parsedAction, action.timeMillis, states);
   }
-}
-
-export function playerId(id: string): string {
-  return `players/${id}`;
-}
-
-export function roomId(id: string): string {
-  return `rooms/${id}`;
-}
-
-export function gameId(id: string): string {
-  return `games/${id}`;
 }
 
 function joinRoomAction(a: actions.JoinRoom, timeMillis: number, states: base.States): base.ActorResult {
@@ -100,7 +84,7 @@ function joinRoomAction(a: actions.JoinRoom, timeMillis: number, states: base.St
 function createGameAction(a: actions.CreateGame, timeMillis: number, states: base.States): base.ActorResult {
   const rng = new Prando(`${JSON.stringify(a)}:${timeMillis}`);
 
-  let gameName = gameId(rng.nextString());
+  let gameName = model.gameId(rng.nextString());
   if (!(a.room in states)) {
     return base.graft(a.room, gameName);
   }
@@ -117,7 +101,7 @@ function createGameAction(a: actions.CreateGame, timeMillis: number, states: bas
   // Find an unused gameName.
   while (true) {
     if (states[gameName] === null) { break; }
-    gameName = gameId(rng.nextString());
+    gameName = model.gameId(rng.nextString());
     if (!(gameName in states)) {
       return base.graft(gameName);
     }

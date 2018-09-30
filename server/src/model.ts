@@ -3,6 +3,10 @@ export const ROOM = 'ROOM';
 export type ROOM = typeof ROOM;
 interface StateMap { [ROOM]: RoomState; }
 
+export function roomId(id: string): string {
+  return `rooms/${id}`;
+}
+
 export type RoomState = {
   kind: ROOM;
 
@@ -13,6 +17,10 @@ export type RoomState = {
 export const PLAYER = 'PLAYER';
 export type PLAYER = typeof PLAYER;
 interface StateMap { [PLAYER]: PlayerState; }
+
+export function playerId(id: string): string {
+  return `players/${id}`;
+}
 
 export type PlayerState = {
   kind: PLAYER;
@@ -25,6 +33,10 @@ export type PlayerState = {
 export const GAME = 'GAME';
 export type GAME = typeof GAME;
 interface StateMap { [GAME]: GameState; }
+
+export function gameId(id: string): string {
+  return `games/${id}`;
+}
 
 export type GameState = {
   kind: GAME;
