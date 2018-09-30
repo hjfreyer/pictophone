@@ -1,6 +1,6 @@
 
-import * as gp from '../src/gameplay';
 import * as status from 'status';
+import * as gp from '../src/gameplay';
 
 export type Functor = (g: gp.Game) => [status.Status, gp.Game];
 
