@@ -9,12 +9,12 @@ interface ActionMap { [JOIN_ROOM]: JoinRoom; }
 
 export type JoinRoom = {
   kind: JOIN_ROOM;
-  playerId: string;
-  roomId: string;
+  player: string;
+  room: string;
 };
 
-export function joinRoom(playerId: string, roomId: string): Action {
-  return { kind: JOIN_ROOM, playerId, roomId };
+export function joinRoom(player: string, room: string): Action {
+  return { kind: JOIN_ROOM, player, room };
 }
 
 export const CREATE_GAME = 'CREATE_GAME';
@@ -23,9 +23,9 @@ interface ActionMap { [CREATE_GAME]: CreateGame; }
 
 export type CreateGame = {
   kind: CREATE_GAME;
-  roomId: string;
+  room: string;
 };
 
-export function createGame(roomId: string): Action {
-  return { kind: CREATE_GAME, roomId };
+export function createGame(room: string): Action {
+  return { kind: CREATE_GAME, room };
 }
