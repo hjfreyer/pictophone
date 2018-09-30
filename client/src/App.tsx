@@ -3,6 +3,8 @@ import './App.css';
 
 import * as pictophone from 'pictophone';
 import { model } from 'pictophone';
+import * as knit from 'knit';
+import {local} from 'knit';
 
 import logo from './logo.svg';
 import * as rx from 'rxjs';
@@ -32,12 +34,12 @@ type IdSubjs = {
 // }
 
 class App extends React.Component<{}, State> {
-  local: pictophone.base.System
+  local: knit.System
   ids: IdSubjs
   //  stateSubjs: StateSubjs
 
   public componentWillMount() {
-    this.local = pictophone.local.LocalFactory(pictophone.streams.actor2);
+    this.local = local.LocalFactory(pictophone.streams.actor2);
     this.ids = {
       player: new rx.BehaviorSubject(window.sessionStorage.getItem('playerId') || ''),
       room: new rx.BehaviorSubject(window.sessionStorage.getItem('roomId') || ''),
