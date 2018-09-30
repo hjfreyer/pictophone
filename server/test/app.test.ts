@@ -90,6 +90,39 @@ describe('basic rooms', () => {
     });
   });
 
+  test('leave room', () => {
+    expectAction(actions.joinRoom(p1, r1)).toEqual(status.ok());
+    expectAction(actions.joinRoom(p2, r1)).toEqual(status.ok());
+
+    expectAction(actions.joinRoom(p1, '')).toEqual(status.ok());
+    expect(ds.get(r1)).toEqual({
+      kind: model.ROOM,
+      players: [p2],
+    });
+    expect(ds.get('')).toBeNull();
+    expect(ds.get(p1)).toEqual({
+      kind: model.PLAYER,
+      room: '',
+    });
+    expect(ds.get(p2)).toEqual({
+      kind: model.PLAYER,
+      room: r1,
+    });
+  });
+
+  test('abandon room', () => {
+    expectAction(actions.joinRoom(p1, r1)).toEqual(status.ok());
+    expectAction(actions.joinRoom(p2, r1)).toEqual(status.ok());
+
+    expectAction(actions.joinRoom(p1, '')).toEqual(status.ok());
+    expectAction(actions.joinRoom(p2, r2)).toEqual(status.ok());
+
+    expect(ds.get(r1)).toEqual({
+      kind: model.ROOM,
+      players: [],
+    });
+  });
+
   test('p1 moves, p2 stays', () => {
     expectAction(actions.joinRoom(p1, r1)).toEqual(status.ok());
     expectAction(actions.joinRoom(p2, r1)).toEqual(status.ok());

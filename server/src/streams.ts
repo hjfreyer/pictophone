@@ -32,8 +32,13 @@ export function gameId(id: string): string {
 }
 
 function joinRoomAction(a: actions.JoinRoom, timeMillis: number, states: base.States): base.ActorResult {
-  if (!(a.player in states)) {
-    return base.graft(a.player, a.room);
+  {
+    const toGraft = [];
+    if (!(a.player in states)) { toGraft.push(a.player); }
+    if (a.room != '' && !(a.room in states)) { toGraft.push(a.room) };
+    if (toGraft.length != 0) {
+      return base.graft(...toGraft);
+    }
   }
 
   const player = (states[a.player] as model.PlayerState) || model.mkDefault(model.PLAYER);
@@ -61,7 +66,7 @@ function joinRoomAction(a: actions.JoinRoom, timeMillis: number, states: base.St
         updates: states,
       };
     }
-    const newOldRoom: model.RoomState = {
+    let newOldRoom: model.RoomState = {
       ...oldRoom,
       players: [
         ...oldRoom.players.slice(0, playerIdx),
@@ -71,19 +76,19 @@ function joinRoomAction(a: actions.JoinRoom, timeMillis: number, states: base.St
     states[player.room] = newOldRoom;
   }
 
-  // TODO: Address a.room == ''.
-
-  const newRoom = (states[a.room] as model.RoomState) || model.mkDefault(model.ROOM);
-
   states[a.player] = {
     ...player,
     room: a.room,
   };
 
-  states[a.room] = {
-    ...newRoom,
-    players: [...newRoom.players, a.player],
-  };
+  if (a.room != '') {
+    const newRoom = (states[a.room] as model.RoomState) || model.mkDefault(model.ROOM);
+
+    states[a.room] = {
+      ...newRoom,
+      players: [...newRoom.players, a.player],
+    };
+  }
 
   return {
     kind: 'FINISH',
@@ -91,7 +96,6 @@ function joinRoomAction(a: actions.JoinRoom, timeMillis: number, states: base.St
     updates: states,
   };
 }
-
 
 function createGameAction(a: actions.CreateGame, timeMillis: number, states: base.States): base.ActorResult {
   const rng = new Prando(`${JSON.stringify(a)}:${timeMillis}`);
@@ -101,8 +105,8 @@ function createGameAction(a: actions.CreateGame, timeMillis: number, states: bas
     return base.graft(a.room, gameName);
   }
 
-  const room = states[a.room] as model.RoomState;
-  if (room === null) {
+  const room = states[a.room] as model.RoomState || model.mkDefault(model.ROOM);
+  if (room.players.length == 0) {
     return {
       kind: "FINISH",
       result: { status: status.notFound() },
@@ -116,15 +120,6 @@ function createGameAction(a: actions.CreateGame, timeMillis: number, states: bas
     gameName = gameId(rng.nextString());
     if (!(gameName in states)) {
       return base.graft(gameName);
-    }
-  }
-
-  // INVARIANT: Rooms should have at least one player.
-  if (room.players.length == 0) {
-    return {
-      kind: "FINISH",
-      result: { status: status.internal() },
-      updates: states,
     }
   }
 
