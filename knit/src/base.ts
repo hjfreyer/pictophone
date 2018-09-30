@@ -1,5 +1,5 @@
 import * as status from 'status';
-import { BehaviorSubject, Observable, Subscription } from 'rxjs';
+import { Observable } from 'rxjs';
 
 export type Action = {
   action: string
