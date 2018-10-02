@@ -10,33 +10,84 @@ type Item = {
   value: string;
 }
 
-export class Local implements base.System, base.DB {
-  a: base.Actor;
-  ls: rx.Observable<Item>
-  loopback: rx.Subject<Item> = new rx.Subject();
+type Stash = {
+  [id: string]: string
+}
 
-  allItems: rx.Observable<Item>;
+export class StorageWrapper {
+  s: Storage;
 
-  constructor(a: base.Actor) {
-    this.a = a;
-    this.ls = rx.fromEvent<StorageEvent>(window, 'storage')
-      .pipe(rxop.map(e => ({ key: e.key!, value: e.newValue! })));
-    this.allItems = rx.merge(this.ls, this.loopback);
+  // TODO: Only replay updates that haven't yet been overwritten somehow.
+  events: rx.ReplaySubject<Item> = new rx.ReplaySubject();
+
+  constructor(s: Storage,
+    storageEvents: rx.Observable<StorageEvent>) {
+    this.s = s;
+
+    for (const key of allKeys(s)) {
+      this.events.next({ key, value: s.getItem(key)! });
+    }
+    storageEvents
+      .pipe(rxop.map(e => ({ key: e.key!, value: e.newValue! })))
+      .subscribe(this.events);
   }
 
-  listen(id: string): rx.Observable<string> {
-    let res = this.allItems.pipe(
-      rxop.filter(e => e.key == id),
-      rxop.map(e => e.value)
-    );
-    const current = window.localStorage.getItem(id);
-    if (current) {
-      res = res.pipe(rxop.startWith(current));
-    } else {
-      res = res.pipe(rxop.startWith('null'));
-    }
+  setItem(key: string, value: string) {
+    this.s.setItem(key, value);
+    this.events.next({ key, value });
+  }
+}
 
-    return res.pipe(rxop.tap(console.log));
+export class StorageViewer implements base.Viewer {
+  private wrapper: StorageWrapper;
+  namespace: string;
+
+  constructor(wrapper: StorageWrapper, namespace: string) {
+    this.wrapper = wrapper;
+    this.namespace = namespace;
+  }
+
+  get(ref: base.DocumentRef): rx.Observable<string> {
+    return this.wrapper.events.pipe(
+      rxop.filter(({ key }) => key == `${this.namespace}/${ref.docId}`),
+      rxop.map(({ value }) => value),
+    );
+  }
+
+  list(ref: base.CollectionRef): rx.Observable<base.DocumentSnapshot[]> {
+    return this.wrapper.events.pipe(
+      rxop.filter(({ key }) => key.startsWith(`${this.namespace}/`)),
+      rxop.map(({ key, value }) => ({ key: key.slice(`${this.namespace}/`.length), value })),
+      rxop.filter(({ key }) => ref.collectionId == base.getCollection({ docId: key }).collectionId),
+      rxop.scan<Item, Stash>((acc: Stash, { key, value }: Item) => {
+        return { ...acc, [key]: value }
+      }, {}),
+      rxop.map(saved => {
+        const res: base.DocumentSnapshot[] = [];
+        for (const key in saved) {
+          res.push({
+            documentRef: { docId: key },
+            value: saved[key] as string,
+          })
+        }
+        return res;
+      }),
+      rxop.startWith([]),
+    )
+  }
+}
+
+export class Local implements base.System, base.DB {
+  a: base.Actor;
+  wrapper: StorageWrapper;
+  storageNamespace: string;
+  viewer: base.Viewer;
+
+  constructor(a: base.Actor, wrapper: StorageWrapper, storageNamespace: string) {
+    this.a = a;
+    this.wrapper = wrapper;
+    this.storageNamespace = storageNamespace;
+    this.viewer = new StorageViewer(wrapper, storageNamespace);
   }
 
   enqueue(action: string): Promise<any> {
@@ -46,46 +97,18 @@ export class Local implements base.System, base.DB {
 
   update(updates: base.States): status.Status {
     for (const key in updates) {
-      window.localStorage.setItem(key, JSON.stringify(updates[key]));
-      this.loopback.next({ key, value: JSON.stringify(updates[key]) })
+      this.wrapper.setItem(`${this.storageNamespace}/${key}`,
+        JSON.stringify(updates[key]));
     }
     return status.ok();
   }
 
   get(id: string): any {
-    const item = window.localStorage.getItem(id);
+    const item = window.localStorage.getItem(`${this.storageNamespace}/${id}`);
     return item ? JSON.parse(item) : null;
   }
-
-
-  list(collectionId: string): rx.Observable<string[]> {
-    const collectionRe = /([a-zA-Z]+\/[a-zA-Z0-9_]+\/)*[a-zA-Z]+\//;
-    if (!collectionRe.test(collectionId)) {
-      throw 'Baddd';
-    }
-    console.log('listing', collectionId)
-    const initial = allKeys().filter(key => key.startsWith(collectionId))
-
-    return this.allItems.pipe(
-      rxop.map(({ key }) => key),
-      rxop.filter(key => key.startsWith(collectionId)),
-      rxop.mergeScan<string, string[]>((acc, val) => {
-        if (acc.indexOf(val) != -1) {
-          return rx.empty();
-        } else {
-          return rx.of([...acc, val])
-        }
-      }, initial),
-      rxop.startWith(initial),
-    );
-  }
 }
 
-function allKeys(): string[] {
-  const res: string[] = [];
-  return [...Array(localStorage.length)].map((_, idx) => localStorage.key(idx)!);
+function allKeys(s: Storage): string[] {
+  return [...Array(s.length)].map((_, idx) => s.key(idx)!);
 }
-
-}
-
-export let LocalFactory: base.SystemFactory = (a: base.Actor) => new Local(a);

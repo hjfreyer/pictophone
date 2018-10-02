@@ -34,12 +34,16 @@ type IdSubjs = {
 // }
 
 class App extends React.Component<{}, State> {
-  local: knit.System
+  local: knit.local.Local
+  viewer: knit.Viewer
   ids: IdSubjs
   //  stateSubjs: StateSubjs
 
   public componentWillMount() {
-    this.local = local.LocalFactory(pictophone.streams.actor2);
+    const events = rx.fromEvent(window, 'storage') as rx.Observable<StorageEvent>;
+    const wrapper = new local.StorageWrapper(window.localStorage, events);
+    this.local = new local.Local(pictophone.streams.actor2, wrapper, 'pictophone');
+    this.viewer = this.local.viewer;
     this.ids = {
       player: new rx.BehaviorSubject(window.sessionStorage.getItem('playerId') || ''),
       room: new rx.BehaviorSubject(window.sessionStorage.getItem('roomId') || ''),
@@ -59,27 +63,25 @@ class App extends React.Component<{}, State> {
     });
 
     const player: rx.Observable<model.PlayerState> = this.ids.player.pipe(
-      rxop.switchMap(id => this.local.listen('players/' + id)),
+      rxop.switchMap(id => this.viewer.get(knit.newDocumentRef(`players/${id}`))),
       rxop.map(x => JSON.parse(x) as model.PlayerState),
     )
     const room: rx.Observable<model.RoomState> = this.ids.room.pipe(
-      rxop.switchMap(id => this.local.listen('rooms/' + id)),
+      rxop.switchMap(id => this.viewer.get(knit.newDocumentRef(`rooms/${id}`))),
       rxop.map(x => JSON.parse(x) as model.RoomState),
     )
     const game: rx.Observable<model.GameState> = this.ids.game.pipe(
-      rxop.switchMap(id => this.local.listen(id)),
+      rxop.switchMap(id => this.viewer.get(knit.newDocumentRef(id))),
       rxop.map(x => JSON.parse(x) as model.GameState),
     )
     this.ids.player.pipe(
-      rxop.switchMap(id => this.local.list(`players/${id}/games/`)),
-      rxop.switchMap(
-        gids => rx.combineLatest(gids.map(gid =>
-          this.local.listen(gid).pipe(
-            rxop.map(gstate => JSON.parse(gstate) as model.PlayerGameView),
-            rxop.tap(x => console.log('view', typeof (x))),
-            rxop.map(gstate => ({ name: gid, view: gstate.view }))
-          )))
-      )
+      rxop.switchMap(id => this.viewer.list(knit.newCollectionRef(`players/${id}/games`))),
+      rxop.tap(g=> console.log('games', g)),
+      rxop.map(docs => docs.map(doc => {
+        const view = JSON.parse(doc.value) as model.PlayerGameView;
+        return {name: doc.documentRef.docId, view: view.view};
+      })
+    )
     ).subscribe(games => this.setState({ games }));
 
     //    this.stateSubjs = { player, room };
