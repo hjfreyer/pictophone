@@ -95,17 +95,18 @@ export class Local implements base.System, base.DB {
     return Promise.resolve(base.apply(this, this.a, { action, timeMillis }));
   }
 
-  update(updates: base.States): status.Status {
+  update(updates: base.States): Promise<status.Status> {
     for (const key in updates) {
       this.wrapper.setItem(`${this.storageNamespace}/${key}`,
         JSON.stringify(updates[key]));
     }
-    return status.ok();
+    return Promise.resolve(status.ok());
   }
 
-  get(id: string): any {
-    const item = window.localStorage.getItem(`${this.storageNamespace}/${id}`);
-    return item ? JSON.parse(item) : null;
+  get(id: string): Promise<base.State> {
+    return Promise.resolve({
+      value: this.wrapper.s.getItem(`${this.storageNamespace}/${id}`),
+    });
   }
 }
 

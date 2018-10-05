@@ -6,11 +6,15 @@ export type Action = {
   timeMillis: number
 }
 
-export type States = { [id: string]: any };
+export type State = {
+  value: string | null;
+}
+
+export type States = { [id: string]: string | null };
 
 export interface DB {
-  get(id: string): any | null;
-  update(updates: States): status.Status;
+  get(id: string): Promise<State>;
+  update(updates: States): Promise<status.Status>;
 }
 
 type Graft = {
@@ -31,22 +35,26 @@ type Finish = {
 export type ActorResult = Graft | Finish;
 export type Actor = (action: Action, states: States) => ActorResult;
 
-export function apply(db: DB, actor: Actor, action: Action): any {
+export function apply(db: DB, actor: Actor, action: Action): Promise<any> {
+  return doApply(db, actor, action);
+}
+
+async function doApply(db: DB, actor: Actor, action: Action): Promise<any> {
   const states: States = {};
 
   while (true) {
     const res = actor(action, { ...states });
     if (res.kind == "FINISH") {
-      const s = db.update(res.updates);
+      const s = await db.update(res.updates);
       if (!status.isOk(s)) {
         throw 'errr what?';
       }
       return res.result;
     }
 
-    res.additionalIds.forEach(id => {
-      states[id] = db.get(id)
-    });
+    for (const id of res.additionalIds) {
+      states[id] = (await db.get(id)).value;
+    }
   }
 }
 

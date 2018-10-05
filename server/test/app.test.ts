@@ -1,25 +1,21 @@
 
-import * as knit from 'knit';
+import { unittest } from 'knit';
 import * as status from 'status';
 import * as actions from '../src/actions';
 import * as model from '../src/model';
 import * as streams from '../src/streams';
-import * as fake_ds from './fake_ds';
 
-let ds: fake_ds.Datastore;
 const [p1, p2, p3, p4, p5] = 'p1,p2,p3,p4,p5'.split(',').map(model.playerId);
 const [r1, r2] = 'r1,r2'.split(',').map(model.roomId);
 
-let timeMillis: number;
-function doAction(a: actions.Action): any {
-  timeMillis++;
-  return knit.apply(ds, streams.actor2, { action: JSON.stringify(a), timeMillis });
-}
-
+let t: unittest.Tester;
 beforeEach(() => {
-  timeMillis = 1000;
-  ds = new fake_ds.Datastore();
+  t = new unittest.Tester(streams.actor2);
 });
+
+function doAction(a: actions.Action): any {
+  return t.do(JSON.stringify(a));
+}
 
 function expectAction(a: actions.Action): jest.Matchers<status.Status> {
   return expect(doAction(a).status);
@@ -27,17 +23,17 @@ function expectAction(a: actions.Action): jest.Matchers<status.Status> {
 
 describe('basic rooms', () => {
   test('start null', () => {
-    expect(ds.get(r1)).toBeNull();
-    expect(ds.get(p1)).toBeNull();
+    expect(t.get(r1)).toBeNull();
+    expect(t.get(p1)).toBeNull();
   });
 
   test('join creates lazily', () => {
     expectAction(actions.joinRoom(p1, r1)).toEqual(status.ok());
-    expect(ds.get(r1)).toEqual({
+    expect(t.get(r1)).toEqual({
       kind: model.ROOM,
       players: [p1],
     });
-    expect(ds.get(p1)).toEqual({
+    expect(t.get(p1)).toEqual({
       kind: model.PLAYER,
       room: r1
     });
@@ -47,11 +43,11 @@ describe('basic rooms', () => {
     expectAction(actions.joinRoom(p1, r1)).toEqual(status.ok());
     expectAction(actions.joinRoom(p2, r1)).toEqual(status.ok());
 
-    expect(ds.get(r1)).toEqual({
+    expect(t.get(r1)).toEqual({
       kind: model.ROOM,
       players: [p1, p2],
     });
-    expect(ds.get(p2)).toEqual({
+    expect(t.get(p2)).toEqual({
       kind: model.PLAYER,
       room: r1
     });
@@ -61,11 +57,11 @@ describe('basic rooms', () => {
     expectAction(actions.joinRoom(p1, r1)).toEqual(status.ok());
     expectAction(actions.joinRoom(p1, r1)).toEqual(status.ok());
 
-    expect(ds.get(r1)).toEqual({
+    expect(t.get(r1)).toEqual({
       kind: model.ROOM,
       players: [p1],
     });
-    expect(ds.get(p1)).toEqual({
+    expect(t.get(p1)).toEqual({
       kind: model.PLAYER,
       room: r1
     });
@@ -75,15 +71,15 @@ describe('basic rooms', () => {
     expectAction(actions.joinRoom(p1, r1)).toEqual(status.ok());
     expectAction(actions.joinRoom(p1, r2)).toEqual(status.ok());
 
-    expect(ds.get(r1)).toEqual({
+    expect(t.get(r1)).toEqual({
       kind: model.ROOM,
       players: [],
     });
-    expect(ds.get(r2)).toEqual({
+    expect(t.get(r2)).toEqual({
       kind: model.ROOM,
       players: [p1],
     });
-    expect(ds.get(p1)).toEqual({
+    expect(t.get(p1)).toEqual({
       kind: model.PLAYER,
       room: r2
     });
@@ -94,16 +90,16 @@ describe('basic rooms', () => {
     expectAction(actions.joinRoom(p2, r1)).toEqual(status.ok());
 
     expectAction(actions.joinRoom(p1, '')).toEqual(status.ok());
-    expect(ds.get(r1)).toEqual({
+    expect(t.get(r1)).toEqual({
       kind: model.ROOM,
       players: [p2],
     });
-    expect(ds.get('')).toBeNull();
-    expect(ds.get(p1)).toEqual({
+    expect(t.get('')).toBeNull();
+    expect(t.get(p1)).toEqual({
       kind: model.PLAYER,
       room: '',
     });
-    expect(ds.get(p2)).toEqual({
+    expect(t.get(p2)).toEqual({
       kind: model.PLAYER,
       room: r1,
     });
@@ -116,7 +112,7 @@ describe('basic rooms', () => {
     expectAction(actions.joinRoom(p1, '')).toEqual(status.ok());
     expectAction(actions.joinRoom(p2, r2)).toEqual(status.ok());
 
-    expect(ds.get(r1)).toEqual({
+    expect(t.get(r1)).toEqual({
       kind: model.ROOM,
       players: [],
     });
@@ -127,19 +123,19 @@ describe('basic rooms', () => {
     expectAction(actions.joinRoom(p2, r1)).toEqual(status.ok());
     expectAction(actions.joinRoom(p1, r2)).toEqual(status.ok());
 
-    expect(ds.get(r1)).toEqual({
+    expect(t.get(r1)).toEqual({
       kind: model.ROOM,
       players: [p2],
     });
-    expect(ds.get(r2)).toEqual({
+    expect(t.get(r2)).toEqual({
       kind: model.ROOM,
       players: [p1],
     });
-    expect(ds.get(p1)).toEqual({
+    expect(t.get(p1)).toEqual({
       kind: model.PLAYER,
       room: r2
     });
-    expect(ds.get(p2)).toEqual({
+    expect(t.get(p2)).toEqual({
       kind: model.PLAYER,
       room: r1
     });
@@ -160,26 +156,26 @@ describe('create game', () => {
   test('create real game', () => {
     const res = doAction(actions.createGame(r1));
     expect(res.status).toEqual(status.ok());
-    expect(ds.get(r1)).toBeNull();
-    expect(ds.get(p1)).toEqual({
+    expect(t.get(r1)).toBeNull();
+    expect(t.get(p1)).toEqual({
       kind: model.PLAYER,
       room: '',
     });
-    expect(ds.get(p2)).toEqual({
+    expect(t.get(p2)).toEqual({
       kind: model.PLAYER,
       room: '',
     });
     expect(res.gameId).toEqual(model.gameId('V0PbCfSD2t6xJip9'));
-    expect(ds.get(res.gameId)).toEqual({
+    expect(t.get(res.gameId)).toEqual({
       kind: model.GAME,
       permutation: [1, 0],
       players: [p1, p2],
     });
-    expect(ds.get(model.playerGameViewId(p1, res.gameId))).toEqual({
+    expect(t.get(model.playerGameViewId(p1, res.gameId))).toEqual({
       kind: "PLAYER_GAME_VIEW",
       view: { state: "FIRST_PROMPT" },
     });
-    expect(ds.get(model.playerGameViewId(p2, res.gameId))).toEqual({
+    expect(t.get(model.playerGameViewId(p2, res.gameId))).toEqual({
       kind: "PLAYER_GAME_VIEW",
       view: { state: "FIRST_PROMPT" },
     });
@@ -191,7 +187,7 @@ describe('create game', () => {
     expectAction(actions.joinRoom(p4, r1)).toEqual(status.ok());
     expectAction(actions.joinRoom(p5, r1)).toEqual(status.ok());
 
-    expect(ds.get(r1)).toEqual({
+    expect(t.get(r1)).toEqual({
       kind: model.ROOM,
       players: [p3, p4, p5],
     });
@@ -199,7 +195,7 @@ describe('create game', () => {
     const res = doAction(actions.createGame(r1));
     expect(res.status).toEqual(status.ok());
     expect(res.gameId).toEqual(model.gameId('KcdedALemq5J4wyS'));
-    expect(ds.get(res.gameId)).toEqual({
+    expect(t.get(res.gameId)).toEqual({
       kind: model.GAME,
       permutation: [2, 0, 1],
       players: [p3, p4, p5],

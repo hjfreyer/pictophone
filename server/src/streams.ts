@@ -17,6 +17,13 @@ export function actor2(action: knit.Action, states: knit.States): knit.ActorResu
   }
 }
 
+function parseOrDefault<K extends model.Kind>(k: K, value: string | null): model.ForKind<K> {
+  if (!value) {
+    return model.mkDefault(k);
+  }
+  return JSON.parse(value);
+}
+
 function joinRoomAction(a: actions.JoinRoom, timeMillis: number, states: knit.States): knit.ActorResult {
   {
     const toGraft = [];
@@ -27,7 +34,7 @@ function joinRoomAction(a: actions.JoinRoom, timeMillis: number, states: knit.St
     }
   }
 
-  const player = (states[a.player] as model.PlayerState) || model.mkDefault(model.PLAYER);
+  const player = parseOrDefault(model.PLAYER, states[a.player]);
   if (player.room == a.room) {
     // Already in room.
     return {
@@ -42,7 +49,7 @@ function joinRoomAction(a: actions.JoinRoom, timeMillis: number, states: knit.St
       return knit.graft(player.room);
     }
 
-    const oldRoom = states[player.room] as model.RoomState;
+    const oldRoom = JSON.parse(states[player.room]!) as model.RoomState;
 
     const playerIdx = oldRoom.players.indexOf(a.player);
     if (playerIdx == -1) {
@@ -59,21 +66,21 @@ function joinRoomAction(a: actions.JoinRoom, timeMillis: number, states: knit.St
         ...oldRoom.players.slice(playerIdx + 1),
       ],
     };
-    states[player.room] = newOldRoom;
+    states[player.room] = JSON.stringify(newOldRoom);
   }
 
-  states[a.player] = {
+  states[a.player] = JSON.stringify({
     ...player,
     room: a.room,
-  };
+  });
 
   if (a.room != '') {
-    const newRoom = (states[a.room] as model.RoomState) || model.mkDefault(model.ROOM);
+    const newRoom = parseOrDefault(model.ROOM, states[a.room]);
 
-    states[a.room] = {
+    states[a.room] = JSON.stringify({
       ...newRoom,
       players: [...newRoom.players, a.player],
-    };
+    });
   }
 
   return {
@@ -91,7 +98,7 @@ function createGameAction(a: actions.CreateGame, timeMillis: number, states: kni
     return knit.graft(a.room, gameName);
   }
 
-  const room = states[a.room] as model.RoomState || model.mkDefault(model.ROOM);
+  const room = parseOrDefault(model.ROOM, states[a.room]);
   if (room.players.length == 0) {
     return {
       kind: "FINISH",
@@ -114,10 +121,8 @@ function createGameAction(a: actions.CreateGame, timeMillis: number, states: kni
     return knit.graft(...room.players);
   }
 
-  const players: model.PlayerState[] = room.players.map(key => states[key]);
-
-  for (const player of players) {
-    if (player == null) {
+  for (const playerKey of room.players) {
+    if (states[playerKey] == null) {
       return {
         kind: "FINISH",
         result: { status: status.internal() },
@@ -126,26 +131,30 @@ function createGameAction(a: actions.CreateGame, timeMillis: number, states: kni
     }
   }
 
+  const players: model.PlayerState[] =
+    room.players.map(key => JSON.parse(states[key]!));
+
   states[a.room] = null;
   const newGame: model.GameState = {
     kind: "GAME",
     players: room.players,
     permutation: randperm(rng, players.length),
   };
-  states[gameName] = newGame;
+  states[gameName] = JSON.stringify(newGame);
 
   room.players.forEach((playerName, idx) => {
     const newPlayer: model.PlayerState = {
-      ...states[playerName],
+      ...JSON.parse(states[playerName]!),
       room: '',
     };
-    states[playerName] = newPlayer;
+    states[playerName] = JSON.stringify(newPlayer);
 
     const viewState: model.PlayerGameView = {
       kind: "PLAYER_GAME_VIEW",
       view: gp.project(gp.newGame(newGame.permutation), idx),
     }
-    states[model.playerGameViewId(playerName, gameName)] = viewState;
+    states[model.playerGameViewId(playerName, gameName)] =
+      JSON.stringify(viewState);
   });
 
   return {
