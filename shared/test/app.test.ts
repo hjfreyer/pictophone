@@ -1,6 +1,6 @@
 
-import { unittest } from 'knit';
-import * as status from 'status';
+import { unittest } from '../src/knit';
+import * as status from '@hjfreyer/status';
 import * as actions from '../src/actions';
 import * as model from '../src/model';
 import * as streams from '../src/streams';

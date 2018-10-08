@@ -1,7 +1,7 @@
 
-import * as knit from 'knit';
+import * as knit from './knit/index';
 import Prando from 'prando';
-import * as status from 'status';
+import * as status from '@hjfreyer/status';
 import * as actions from './actions';
 import * as gp from './gameplay';
 import * as model from './model';

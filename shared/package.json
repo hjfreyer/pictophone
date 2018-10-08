@@ -1,11 +1,13 @@
 {
-  "name": "pictophone",
-  "version": "0.0.1",
+  "name": "@hjfreyer/pictophone",
+  "version": "0.0.2",
   "description": "",
-  "main": "dist/src/index.js",
+  "main": "dist/src/index",
+  "typings": "dist/src/index",
   "scripts": {
     "test": "jest",
-    "build": "tsc"
+    "build": "tsc",
+    "prepare": "npm run build"
   },
   "author": "",
   "license": "Apache-2.0",
@@ -20,7 +22,10 @@
       "^.+\\.tsx?$": "ts-jest"
     },
     "testRegex": "(/__tests__/.*|(\\.|/)(test|spec))\\.(jsx?|tsx?)$",
-    "testPathIgnorePatterns": ["<rootDir>/dist/", "<rootDir>/node_modules/"],
+    "testPathIgnorePatterns": [
+      "<rootDir>/dist/",
+      "<rootDir>/node_modules/"
+    ],
     "moduleFileExtensions": [
       "ts",
       "tsx",
@@ -31,11 +36,13 @@
     ]
   },
   "dependencies": {
+    "@hjfreyer/status": "^0.0.1",
     "immer": "^1.7.2",
     "js-sha256": "^0.9.0",
     "prando": "^3.0.3",
     "rxjs": "^6.3.3",
-    "status": "file:../../status",
-    "knit": "file:../knit"
+    "firebase": "^5.5.3",
+    "firebase-admin": "^6.0.0",
+    "firebase-functions": "^2.0.5"
   }
 }

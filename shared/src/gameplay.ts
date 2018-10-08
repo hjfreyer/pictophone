@@ -1,6 +1,6 @@
 
 import * as immer from "immer";
-import * as status from 'status';
+import * as status from '@hjfreyer/status';
 
 export type Game = Readonly<{
   permutation: number[];
