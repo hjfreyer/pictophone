@@ -1,4 +1,3 @@
-import * as status from 'status';
 import { Observable } from 'rxjs';
 
 export type Action = {
@@ -14,7 +13,6 @@ export type States = { [id: string]: string | null };
 
 export interface DB {
   get(id: string): Promise<State>;
-  update(updates: States): Promise<status.Status>;
 }
 
 type Graft = {
@@ -35,27 +33,9 @@ type Finish = {
 export type ActorResult = Graft | Finish;
 export type Actor = (action: Action, states: States) => ActorResult;
 
-export function apply(db: DB, actor: Actor, action: Action): Promise<any> {
-  return doApply(db, actor, action);
-}
+export type ApplyResult = {
+  result: any;
 
-async function doApply(db: DB, actor: Actor, action: Action): Promise<any> {
-  const states: States = {};
-
-  while (true) {
-    const res = actor(action, { ...states });
-    if (res.kind == "FINISH") {
-      const s = await db.update(res.updates);
-      if (!status.isOk(s)) {
-        throw 'errr what?';
-      }
-      return res.result;
-    }
-
-    for (const id of res.additionalIds) {
-      states[id] = (await db.get(id)).value;
-    }
-  }
 }
 
 export type SystemFactory = (a: Actor) => System

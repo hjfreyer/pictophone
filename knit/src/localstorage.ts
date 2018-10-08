@@ -1,6 +1,6 @@
 
 import * as base from './base';
-import * as status from 'status';
+import * as status from '@hjfreyer/status';
 
 import * as rx from 'rxjs';
 import * as rxop from 'rxjs/operators';
@@ -90,9 +90,26 @@ export class Local implements base.System, base.DB {
     this.viewer = new StorageViewer(wrapper, storageNamespace);
   }
 
-  enqueue(action: string): Promise<any> {
-    const timeMillis = new Date().getTime();
-    return Promise.resolve(base.apply(this, this.a, { action, timeMillis }));
+  async enqueue(action: string): Promise<any> {
+    const states: base.States = {};
+
+    while (true) {
+      const actionObj = { action, timeMillis: new Date().getTime() };
+
+      const res = this.a(actionObj, { ...states });
+      if (res.kind == "FINISH") {
+        for (const key in res.updates) {
+          // TODO: properly handle null.
+          this.wrapper.setItem(`${this.storageNamespace}/${key}`, res.updates[key]!);
+        }
+        return res.result;
+      }
+
+      for (const id of res.additionalIds) {
+        const doc = this.wrapper.s.getItem(`${this.storageNamespace}/${id}`);
+        states[id] = doc;
+      }
+    }
   }
 
   update(updates: base.States): Promise<status.Status> {
