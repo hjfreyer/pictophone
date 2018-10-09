@@ -1,13 +1,14 @@
-import * as knit from 'knit';
-import { local } from 'knit';
-import * as pictophone from 'pictophone';
-import { model } from 'pictophone';
+import * as pictophone from '@hjfreyer/pictophone';
+import { model, knit } from '@hjfreyer/pictophone';
 import * as React from 'react';
 import * as rx from 'rxjs';
 import * as rxop from 'rxjs/operators';
 import './App.css';
 import Game from './Game';
 import logo from './logo.svg';
+import * as firebase from 'firebase';
+
+const firestore = knit.firestore;
 
 interface State {
   playerId: string;
@@ -33,17 +34,25 @@ type IdSubjs = {
 //   [k in keyof Ids]: rx.Observable<State[k]>
 // }
 
+
+const LIVE = true;
+
 class App extends React.Component<{}, State> {
-  local: knit.local.Local
+  local?: knit.local.Local
   viewer: knit.Viewer
   ids: IdSubjs
+
   //  stateSubjs: StateSubjs
 
   public componentWillMount() {
-    const events = rx.fromEvent(window, 'storage') as rx.Observable<StorageEvent>;
-    const wrapper = new local.StorageWrapper(window.localStorage, events);
-    this.local = new local.Local(pictophone.streams.actor2, wrapper, 'pictophone');
-    this.viewer = this.local.viewer;
+    if (LIVE) {
+      this.viewer = new firestore.Viewer(firebase.firestore());
+    } else {
+      const events = rx.fromEvent(window, 'storage') as rx.Observable<StorageEvent>;
+      const wrapper = new knit.local.StorageWrapper(window.localStorage, events);
+      this.local = new knit.local.Local(pictophone.streams.actor2, wrapper, 'pictophone');
+      this.viewer = this.local.viewer;
+    }
     this.ids = {
       player: new rx.BehaviorSubject(window.sessionStorage.getItem('playerId') || ''),
       room: new rx.BehaviorSubject(window.sessionStorage.getItem('roomId') || ''),
@@ -76,12 +85,12 @@ class App extends React.Component<{}, State> {
     )
     this.ids.player.pipe(
       rxop.switchMap(id => this.viewer.list(knit.newCollectionRef(`players/${id}/games`))),
-      rxop.tap(g=> console.log('games', g)),
+      rxop.tap(g => console.log('games', g)),
       rxop.map(docs => docs.map(doc => {
         const view = JSON.parse(doc.value) as model.PlayerGameView;
-        return {name: doc.documentRef.docId, view: view.view};
-      })
-    )
+        return { name: doc.documentRef.docId, view: view.view };
+      })),
+      rxop.startWith([]),
     ).subscribe(games => this.setState({ games }));
 
     //    this.stateSubjs = { player, room };
@@ -128,14 +137,19 @@ class App extends React.Component<{}, State> {
     );
   }
   mkRoom() {
-    this.local.enqueue(JSON.stringify({
+    const action = JSON.stringify({
       kind: 'JOIN_ROOM',
       room: 'rooms/' + this.state.roomId,
       player: 'players/' + this.state.playerId,
-    })).then(console.log);
+    });
+    if (LIVE) {
+      firebase.firestore().collection('actions').add({action});
+    } else {
+      this.local!.enqueue(action).then(console.log);
+    }
   }
   createGame() {
-    this.local.enqueue(JSON.stringify({
+    this.local!.enqueue(JSON.stringify({
       kind: 'CREATE_GAME',
       room: 'rooms/' + this.state.roomId,
     })).then(res => {

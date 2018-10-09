@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import * as pictophone from 'pictophone';
+import * as pictophone from '@hjfreyer/pictophone';
 
 type BodyProps = {
   view: pictophone.gameplay.PlayerView;

@@ -1,7 +1,9 @@
 
 import * as base from './base';
+import * as firebaseClient from 'firebase';
 import * as functions from 'firebase-functions';
-import { firestore } from 'firebase';
+import * as firestore from '@google-cloud/firestore';
+
 import * as rx from 'rxjs';
 import * as rxop from 'rxjs/operators';
 
@@ -9,11 +11,11 @@ type Transform = {
   action: string,
 };
 
-type CreateHandler = (s: firestore.DocumentSnapshot, context: functions.EventContext) => Promise<any>;
+export type CreateHandler = (s: firestore.DocumentSnapshot, context: functions.EventContext) => Promise<any>;
 
 
 export function makeHandler(actor: base.Actor): CreateHandler {
-  return (s: firestore.DocumentSnapshot, context: functions.EventContext): Promise<any> => {
+  return (s: functions.firestore.DocumentSnapshot, context: functions.EventContext): Promise<any> => {
     return s.ref.firestore.runTransaction(async (transaction: firestore.Transaction): Promise<any> => {
       const action = { action: s.data()!['action'], timeMillis: new Date().getTime() };
 
@@ -43,28 +45,28 @@ export function makeHandler(actor: base.Actor): CreateHandler {
 type Handler<T> = (t: T) => void;
 
 export class Viewer implements base.Viewer {
-  private db: firestore.Firestore;
+  private db: firebaseClient.firestore.Firestore;
 
-  constructor(db: firestore.Firestore) {
+  constructor(db: firebaseClient.firestore.Firestore) {
     this.db = db;
   }
 
   get(ref: base.DocumentRef): rx.Observable<string> {
-    const obs = rx.fromEventPattern<firestore.DocumentSnapshot>((x: Function) =>
-      this.db.doc(ref.docId).onSnapshot(x as Handler<firestore.DocumentSnapshot>));
+    const obs = rx.fromEventPattern<firebaseClient.firestore.DocumentSnapshot>((x: Function) =>
+      this.db.doc(ref.docId).onSnapshot(x as Handler<firebaseClient.firestore.DocumentSnapshot>));
     return obs.pipe(
       rxop.tap(x => console.log('snapshot', ref, x)),
-      rxop.map((snap: firestore.DocumentSnapshot) =>
+      rxop.map((snap: firebaseClient.firestore.DocumentSnapshot) =>
         snap.exists ? snap.data()!['value'] : null)
     );
   }
 
   list(ref: base.CollectionRef): rx.Observable<base.DocumentSnapshot[]> {
-    const obs = rx.fromEventPattern<firestore.QuerySnapshot>((x: Function) =>
-      this.db.collection(ref.collectionId).onSnapshot(x as Handler<firestore.QuerySnapshot>));
+    const obs = rx.fromEventPattern<firebaseClient.firestore.QuerySnapshot>((x: Function) =>
+      this.db.collection(ref.collectionId).onSnapshot(x as Handler<firebaseClient.firestore.QuerySnapshot>));
 
     return obs.pipe(
-      rxop.map((snap: firestore.QuerySnapshot) => snap.docs.map(doc => ({
+      rxop.map((snap: firebaseClient.firestore.QuerySnapshot) => snap.docs.map(doc => ({
         documentRef: { docId: doc.id },
         value: doc.data()!['value'],
       }))));

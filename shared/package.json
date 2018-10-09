@@ -1,6 +1,6 @@
 {
   "name": "@hjfreyer/pictophone",
-  "version": "0.0.2",
+  "version": "0.0.5",
   "description": "",
   "main": "dist/src/index",
   "typings": "dist/src/index",
