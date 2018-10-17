@@ -16,17 +16,10 @@ type Stash = {
 
 export class StorageWrapper {
   s: Storage;
+  events: rx.Subject<Item> = new rx.Subject();
 
-  // TODO: Only replay updates that haven't yet been overwritten somehow.
-  events: rx.ReplaySubject<Item> = new rx.ReplaySubject();
-
-  constructor(s: Storage,
-    storageEvents: rx.Observable<StorageEvent>) {
+  constructor(s: Storage, storageEvents: rx.Observable<StorageEvent>) {
     this.s = s;
-
-    for (const key of allKeys(s)) {
-      this.events.next({ key, value: s.getItem(key)! });
-    }
     storageEvents
       .pipe(rxop.map(e => ({ key: e.key!, value: e.newValue! })))
       .subscribe(this.events);
@@ -48,10 +41,11 @@ export class StorageViewer implements base.Viewer {
   }
 
   get(ref: base.DocumentRef): rx.Observable<string> {
+    const myKey = `${this.namespace}/${ref.docId}`;
     return this.wrapper.events.pipe(
-      rxop.filter(({ key }) => key == `${this.namespace}/${ref.docId}`),
+      rxop.filter(({ key }) => key == myKey),
       rxop.map(({ value }) => value),
-      rxop.startWith('null'),
+      rxop.startWith(this.wrapper.s.getItem(myKey) || ''),
     );
   }
 

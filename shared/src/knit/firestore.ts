@@ -57,7 +57,7 @@ export class Viewer implements base.Viewer {
     return obs.pipe(
       rxop.tap(x => console.log('snapshot', ref, x)),
       rxop.map((snap: firebaseClient.firestore.DocumentSnapshot) =>
-        snap.exists ? snap.data()!['value'] : null)
+        snap.exists ? snap.data()!['value'] : '')
     );
   }
 
@@ -67,7 +67,7 @@ export class Viewer implements base.Viewer {
 
     return obs.pipe(
       rxop.map((snap: firebaseClient.firestore.QuerySnapshot) => snap.docs.map(doc => ({
-        documentRef: { docId: doc.id },
+        documentRef: { docId: `${ref.collectionId}/${doc.id}` },
         value: doc.data()!['value'],
       }))));
   }
