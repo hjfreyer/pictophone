@@ -22,7 +22,7 @@ class Body extends React.Component<BodyProps, BodyState> {
             <b>Come up with a thing!</b><br />
             <input value={this.state.input}
               onChange={e => this.setState({ input: e.target.value })} />
-            <button onClick={() => console.log(this.state.input)}>Loggit</button>
+            <button onClick={() => this.props.reply(this.state.input)}>Loggit</button>
           </div>);
       case "WAITING_FOR_OTHERS":
       case "RESPOND_TO_PROMPT":
@@ -38,11 +38,26 @@ type GameProps = {
   dispatch: (a: pictophone.actions.Action) => void
 }
 
+function gameFromName(name:string) {
+  return name.split('/').slice(2).join('/');
+}
+
+function playerFromName(name:string) {
+  return name.split('/').slice(0, 2).join('/');
+}
+
 function Game({ name, view, dispatch }: GameProps): JSX.Element {
+  const reply = (word: string) => dispatch({
+    kind: "MAKE_MOVE",
+    game: gameFromName(name),
+    player: playerFromName(name),
+    word,
+  });
+
   return (
     <section>
       <h4>Game: {name}</h4>
-      <Body {...{ view, reply: (s: string) => console.log(s) }} />
+      <Body {...{ view, reply }} />
     </section>
   );
 }

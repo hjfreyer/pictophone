@@ -5,162 +5,193 @@ import * as rx from 'rxjs';
 import * as rxop from 'rxjs/operators';
 import './App.css';
 import Game from './Game';
-import logo from './logo.svg';
 import * as firebase from 'firebase';
 
-const firestore = knit.firestore;
-
-interface State {
-  playerId: string;
-  roomId: string;
-
-  player?: pictophone.model.PlayerState;
-  room?: pictophone.model.RoomState;
-  game?: model.GameState;
-  games: { name: string, view: pictophone.gameplay.PlayerView }[];
-};
-
-interface Ids {
+interface Params {
   player: string;
   room: string;
-  game: string;
 }
 
-type IdSubjs = {
-  [k in keyof Ids]: rx.BehaviorSubject<Ids[k]>
+interface Named<T> {
+  name: string;
+  value: T;
 }
-//
-// type StateSubjs = {
-//   [k in keyof Ids]: rx.Observable<State[k]>
-// }
 
+interface State {
+  p: Params;
 
-const LIVE = true;
+  player: model.PlayerState | null;
+  room: pictophone.model.RoomState | null;
+  games: Named<pictophone.gameplay.PlayerView>[];
+}
+
+type Transform = (s: State) => State;
+
+const initParamsJson = window.sessionStorage.getItem('params');
+const initParams = initParamsJson ? JSON.parse(initParamsJson) as Params : { player: '', room: '' };
+
+const initialState: State = { p: initParams, games: [], player: null, room: null };
+
+type SubjectToHandler<T> = T extends rx.Subject<infer U> ? U : never;
+
+const actions = {
+  setParams: new rx.Subject<Partial<Params>>(),
+  joinRoom: new rx.Subject<{}>(),
+  createGame: new rx.Subject<{}>(),
+}
+
+type Dispatchers = { [K in keyof typeof actions]: (k: SubjectToHandler<(typeof actions)[K]>) => void }
+
+const dispatchers = Object.keys(actions).reduce((acc, key) => ({
+  ...acc,
+  [key]: (val: any) => actions[key].next(val)
+}), {}) as Dispatchers;
+console.log(dispatchers)
+
+export function taplog<T>(label: string): rx.MonoTypeOperatorFunction<T> {
+  return rxop.tap(t => console.log(label, t));
+}
+
+function viewerGetUnlessEmpty(viewer: knit.Viewer, docTransform: (s: string) => string): rx.OperatorFunction<string, string> {
+  return rxop.switchMap(
+    (id: string) => id == "" ? rx.of("null") : viewer.get(knit.newDocumentRef(docTransform(id))));
+}
+
+const LIVE = false;
+
+function setPropertyReducer<P extends keyof State>(p: P): rx.OperatorFunction<State[P], Transform> {
+  return rxop.map((v: State[P]) => (s: State) => ({ ...s, [p]: v }));
+}
 
 class App extends React.Component<{}, State> {
   local?: knit.local.Local
   viewer: knit.Viewer
-  ids: IdSubjs
-
-  //  stateSubjs: StateSubjs
 
   public componentWillMount() {
     if (LIVE) {
-      this.viewer = new firestore.Viewer(firebase.firestore());
+      this.viewer = new knit.firestore.Viewer(firebase.firestore());
     } else {
       const events = rx.fromEvent(window, 'storage') as rx.Observable<StorageEvent>;
       const wrapper = new knit.local.StorageWrapper(window.localStorage, events);
       this.local = new knit.local.Local(pictophone.streams.actor2, wrapper, 'pictophone');
       this.viewer = this.local.viewer;
     }
-    this.ids = {
-      player: new rx.BehaviorSubject(window.sessionStorage.getItem('playerId') || ''),
-      room: new rx.BehaviorSubject(window.sessionStorage.getItem('roomId') || ''),
-      game: new rx.BehaviorSubject(window.sessionStorage.getItem('gameId') || ''),
+
+    const paramsLive: rx.Observable<Params> = actions.setParams.pipe(
+      rxop.scan<Partial<Params>, Params>((acc, up) => ({ ...acc, ...up }), initParams),
+      rxop.startWith(initParams));
+
+    const playerObj: rx.Observable<model.PlayerState | null> = paramsLive.pipe(
+      rxop.map(p => p.player),
+      rxop.distinctUntilChanged(),
+      viewerGetUnlessEmpty(this.viewer, id => `players/${id}`),
+      rxop.map(json => JSON.parse(json) as model.PlayerState | null),
+    );
+    const roomObj: rx.Observable<model.RoomState | null> = paramsLive.pipe(
+      rxop.map(p => p.room),
+      rxop.distinctUntilChanged(),
+      viewerGetUnlessEmpty(this.viewer, id => `rooms/${id}`),
+      rxop.map(json => JSON.parse(json) as model.RoomState | null),
+    );
+
+    const setParamsReducer: rx.Observable<Transform> = paramsLive.pipe(
+      rxop.map((newParams) => {
+        window.sessionStorage.setItem('params', JSON.stringify(newParams));
+        return (s: State) => ({ ...s, p: newParams });
+      }),
+    );
+
+    const joinRoomReducer: rx.Observable<Transform> = actions.joinRoom.pipe(
+      rxop.mergeMap(() =>
+        this.doAction({
+          kind: 'JOIN_ROOM',
+          room: 'rooms/' + this.state.p.room,
+          player: 'players/' + this.state.p.player,
+        }).pipe(
+          taplog('join response'),
+          rxop.mapTo((x: State) => x)
+        )
+      ),
+    );
+    const createGameReducer: rx.Observable<Transform> = actions.createGame.pipe(
+      rxop.mergeMap(() =>
+        this.doAction({
+          kind: 'CREATE_GAME',
+          room: 'rooms/' + this.state.p.room,
+        }).pipe(
+          taplog('create response'),
+          rxop.mapTo((x: State) => x)
+        )
+      ),
+    );
+
+    const getGames: rx.Observable<Transform> =
+      paramsLive.pipe(
+        rxop.map(x => x.player),
+        rxop.distinctUntilChanged(),
+        rxop.switchMap(id => this.viewer.list(knit.newCollectionRef(`players/${id}/games`))),
+        rxop.map(docs => docs.map(doc => {
+          const view = JSON.parse(doc.value) as model.PlayerGameView;
+          return { name: doc.documentRef.docId, value: view.view };
+        })),
+        rxop.startWith([]),
+        setPropertyReducer('games')
+      );
+
+    const reducer: rx.Observable<Transform> = rx.merge(setParamsReducer,
+      joinRoomReducer,
+      createGameReducer,
+      getGames,
+      playerObj.pipe(setPropertyReducer('player')),
+      roomObj.pipe(setPropertyReducer('room')));
+
+    const state: rx.Observable<State> = reducer.pipe(
+      rxop.scan<Transform, State>((acc, act) => act(acc), initialState),
+      rxop.startWith(initialState),
+      rxop.tap(x => console.log('STATE', x)),
+    );
+
+    state.subscribe(s => this.setState(s));
+  }
+
+  doAction(action: pictophone.actions.Action): rx.Observable<any> {
+    console.log('ACTION', action);
+    const actionStr = JSON.stringify(action);
+    if (LIVE) {
+      return rx.from(firebase.firestore().collection('actions').add({ action: actionStr }));
+    } else {
+      return rx.from(this.local!.enqueue(actionStr));
     }
-    this.ids.player.subscribe(i => {
-      window.sessionStorage.setItem('playerId', i);
-      this.setState({ playerId: i });
-    });
-    this.ids.room.subscribe(i => {
-      window.sessionStorage.setItem('roomId', i);
-      this.setState({ roomId: i });
-    });
-    this.ids.game.subscribe(i => {
-      window.sessionStorage.setItem('gameId', i);
-      //      this.setState({ gameId: i });
-    });
-
-    const player: rx.Observable<model.PlayerState> = this.ids.player.pipe(
-      rxop.switchMap(id => this.viewer.get(knit.newDocumentRef(`players/${id}`))),
-      rxop.map(x => JSON.parse(x) as model.PlayerState),
-    )
-    const room: rx.Observable<model.RoomState> = this.ids.room.pipe(
-      rxop.switchMap(id => this.viewer.get(knit.newDocumentRef(`rooms/${id}`))),
-      rxop.map(x => JSON.parse(x) as model.RoomState),
-    )
-    const game: rx.Observable<model.GameState> = this.ids.game.pipe(
-      rxop.switchMap(id => this.viewer.get(knit.newDocumentRef(id))),
-      rxop.map(x => JSON.parse(x) as model.GameState),
-    )
-    this.ids.player.pipe(
-      rxop.switchMap(id => this.viewer.list(knit.newCollectionRef(`players/${id}/games`))),
-      rxop.tap(g => console.log('games', g)),
-      rxop.map(docs => docs.map(doc => {
-        const view = JSON.parse(doc.value) as model.PlayerGameView;
-        return { name: doc.documentRef.docId, view: view.view };
-      })),
-      rxop.startWith([]),
-    ).subscribe(games => this.setState({ games }));
-
-    //    this.stateSubjs = { player, room };
-    player.subscribe(player => this.setState({ player }));
-    room.subscribe(room => this.setState({ room }))
-    game.subscribe(game => this.setState({ game }))
   }
 
   public render() {
     return (
       <div className="App">
-        <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <h1 className="App-title">Welcome to React, {this.ids.player.getValue()}</h1>
+        <h1>Pictophone!</h1>
+        <section>
           <label>Player Id:
-            <input value={this.ids.player.getValue()} onChange={u => this.setId('player', u.target.value)} />
+            <input value={this.state.p.player} onChange={u => dispatchers.setParams({ player: u.target.value })} />
           </label>
-
-        </header>
+          <br />
+          <label>Room Id:
+            <input value={this.state.p.room} onChange={u => dispatchers.setParams({ room: u.target.value })} />
+          </label>
+          <br />
+          <button onClick={_e => dispatchers.joinRoom({})}>Join Room {this.state.p.room}</button>
+          <button onClick={_e => dispatchers.createGame({})}>Create Game from {this.state.p.room}</button>
+        </section>
         <section>
-          <h3>PlayerInfo</h3>
           <pre>{JSON.stringify(this.state.player)}</pre>
-        </section>
-        <section>
-          <h3>RoomInfo</h3>
           <pre>{JSON.stringify(this.state.room)}</pre>
-          <input value={this.ids.room.getValue()} onChange={u => this.setId('room', u.target.value)} />
-          <button onClick={_e => this.mkRoom()}>Join Room {this.state.roomId}</button>
-          <button onClick={_e => this.createGame()}>Create Game from {this.state.roomId}</button>
-        </section>
-        <section>
-          <pre>{JSON.stringify(this.state.game)}</pre>
         </section>
         <section>
           <h3>Da games</h3>
           {this.state.games.map(g =>
-            <Game key={g.name} name={g.name} view={g.view} dispatch={() => null} />
+            <Game key={g.name} name={g.name} view={g.value} dispatch={(a) => this.doAction(a)} />
           )}
         </section>
-        <p className="App-intro">
-          To get started, edit <code>src/App.tsx</code> and save to reload.
-        </p>
       </div>
     );
-  }
-  mkRoom() {
-    const action = JSON.stringify({
-      kind: 'JOIN_ROOM',
-      room: 'rooms/' + this.state.roomId,
-      player: 'players/' + this.state.playerId,
-    });
-    if (LIVE) {
-      firebase.firestore().collection('actions').add({action});
-    } else {
-      this.local!.enqueue(action).then(console.log);
-    }
-  }
-  createGame() {
-    this.local!.enqueue(JSON.stringify({
-      kind: 'CREATE_GAME',
-      room: 'rooms/' + this.state.roomId,
-    })).then(res => {
-      this.ids.game.next(res.gameId)
-    });
-  }
-  setId<K extends keyof Ids>(key: K, value: Ids[K]) {
-    this.ids[key].next(value);
-    //    this.setState({ ...this.state, [key]: value });
-    // window.sessionStorage.setItem(key, value);
-    // this.setState({ ...this.state, [key]: value });
   }
 }
 
