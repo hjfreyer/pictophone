@@ -56,6 +56,7 @@ export type GameState = {
   kind: GAME;
   players: string[];
   permutation: number[];
+  responses: string[][];
 };
 
 export type Kind = keyof StateMap;
@@ -70,6 +71,7 @@ export function mkDefault<K extends Kind>(k: K): ForKind<K> {
       kind: GAME,
       players: [],
       permutation: [],
+      responses: [],
     },
   };
   return defaults[k];

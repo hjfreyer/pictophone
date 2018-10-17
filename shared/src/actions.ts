@@ -29,3 +29,18 @@ export type CreateGame = {
 export function createGame(room: string): Action {
   return { kind: CREATE_GAME, room };
 }
+
+export const MAKE_MOVE = 'MAKE_MOVE';
+export type MAKE_MOVE = typeof MAKE_MOVE;
+interface ActionMap { [MAKE_MOVE]: MakeMove; }
+
+export type MakeMove = {
+  kind: MAKE_MOVE;
+  player: string;
+  game: string;
+  word: string;
+};
+
+export function makeMove(player: string, game: string, word: string): Action {
+  return { kind: MAKE_MOVE, player, game, word };
+}

@@ -14,11 +14,13 @@ export function actor2(action: knit.Action, states: knit.States): knit.ActorResu
       return joinRoomAction(parsedAction, action.timeMillis, states);
     case actions.CREATE_GAME:
       return createGameAction(parsedAction, action.timeMillis, states);
+    case actions.MAKE_MOVE:
+      return makeMoveAction(parsedAction, states);
   }
 }
 
 function parseOrDefault<K extends model.Kind>(k: K, value: string | null): model.ForKind<K> {
-  if (!value) {
+  if (value == null) {
     return model.mkDefault(k);
   }
   return JSON.parse(value);
@@ -76,7 +78,6 @@ function joinRoomAction(a: actions.JoinRoom, timeMillis: number, states: knit.St
 
   if (a.room != '') {
     const newRoom = parseOrDefault(model.ROOM, states[a.room]);
-
     states[a.room] = JSON.stringify({
       ...newRoom,
       players: [...newRoom.players, a.player],
@@ -134,11 +135,12 @@ function createGameAction(a: actions.CreateGame, timeMillis: number, states: kni
   const players: model.PlayerState[] =
     room.players.map(key => JSON.parse(states[key]!));
 
-  states[a.room] = null;
+  states[a.room] = JSON.stringify(model.mkDefault(model.ROOM));
   const newGame: model.GameState = {
     kind: "GAME",
     players: room.players,
     permutation: randperm(rng, players.length),
+    responses: players.map(() => []),
   };
   states[gameName] = JSON.stringify(newGame);
 
@@ -179,4 +181,48 @@ function randperm(rng: Prando, maxValue: number): number[] {
     permArray[randPos] = tmpStore;
   }
   return permArray;
+}
+
+function makeMoveAction(a: actions.MakeMove, states: knit.States): knit.ActorResult {
+  if (!(a.game in states)) {
+    return knit.graft(a.game);
+  }
+  const game: model.GameState = JSON.parse(states[a.game]!);
+
+  const playerIdx = game.players.indexOf(a.player);
+  if (playerIdx == -1) {
+    return {
+      kind: 'FINISH',
+      result: { status: status.preconditionFailed() },
+      updates: states,
+    };
+  }
+
+  const gs: gp.Game = { permutation: game.permutation, responses: game.responses };
+  const [s, newGame] = gp.submit(gs, playerIdx, a.word);
+  if (!status.isOk(s)) {
+    return {
+      kind: 'FINISH',
+      result: { status: s },
+      updates: states,
+    };
+  }
+  states[a.game] = JSON.stringify({
+    ...game,
+    responses: newGame.responses,
+  });
+
+  game.players.forEach((playerName, idx) => {
+    const viewState: model.PlayerGameView = {
+      kind: "PLAYER_GAME_VIEW",
+      view: gp.project(newGame, idx),
+    }
+    states[model.playerGameViewId(playerName, a.game)] =
+      JSON.stringify(viewState);
+  });
+  return {
+    kind: 'FINISH',
+    result: { status: status.ok() },
+    updates: states,
+  };
 }
