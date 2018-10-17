@@ -20,17 +20,29 @@ interface Named<T> {
 interface State {
   p: Params;
 
-  player: model.PlayerState | null;
-  room: pictophone.model.RoomState | null;
+  player: Loadable<model.PlayerState>;
+  room: Loadable<pictophone.model.RoomState>;
   games: Named<pictophone.gameplay.PlayerView>[];
 }
+
+type Loadable<T> = {
+  state: 'EMPTY' | 'LOADING',
+} | {
+  state: 'READY',
+  value: T,
+};
 
 type Transform = (s: State) => State;
 
 const initParamsJson = window.sessionStorage.getItem('params');
 const initParams = initParamsJson ? JSON.parse(initParamsJson) as Params : { player: '', room: '' };
 
-const initialState: State = { p: initParams, games: [], player: null, room: null };
+const initialState: State = {
+  p: initParams,
+  games: [],
+  player: { state: 'EMPTY' },
+  room: { state: 'EMPTY' },
+};
 
 type SubjectToHandler<T> = T extends rx.Subject<infer U> ? U : never;
 
@@ -52,12 +64,27 @@ export function taplog<T>(label: string): rx.MonoTypeOperatorFunction<T> {
   return rxop.tap(t => console.log(label, t));
 }
 
-function viewerGetUnlessEmpty(viewer: knit.Viewer, docTransform: (s: string) => string): rx.OperatorFunction<string, string> {
-  return rxop.switchMap(
-    (id: string) => id == "" ? rx.of("null") : viewer.get(knit.newDocumentRef(docTransform(id))));
+function viewerGetUnlessEmpty<T>(viewer: knit.Viewer,
+  docTransform: (s: string) => string): rx.OperatorFunction<string, Loadable<T>> {
+  return rxop.switchMap((id: string) => {
+    if (id == "") {
+      return rx.of<Loadable<T>>({ state: 'EMPTY' });
+    }
+    const immed = rx.of<Loadable<T>>({ state: "LOADING" });
+    const stream = viewer.get(knit.newDocumentRef(docTransform(id))).pipe(
+      taplog('foo'),
+      rxop.map((serialized: string): Loadable<T> => {
+        if (serialized == '') {
+          return { state: 'EMPTY' };
+        }
+        return { state: 'READY', value: JSON.parse(serialized) as T };
+      })
+    )
+    return rx.concat(immed, stream);
+  });
 }
 
-const LIVE = false;
+const LIVE = true;
 
 function setPropertyReducer<P extends keyof State>(p: P): rx.OperatorFunction<State[P], Transform> {
   return rxop.map((v: State[P]) => (s: State) => ({ ...s, [p]: v }));
@@ -81,24 +108,26 @@ class App extends React.Component<{}, State> {
       rxop.scan<Partial<Params>, Params>((acc, up) => ({ ...acc, ...up }), initParams),
       rxop.startWith(initParams));
 
-    const playerObj: rx.Observable<model.PlayerState | null> = paramsLive.pipe(
-      rxop.map(p => p.player),
-      rxop.distinctUntilChanged(),
-      viewerGetUnlessEmpty(this.viewer, id => `players/${id}`),
-      rxop.map(json => JSON.parse(json) as model.PlayerState | null),
-    );
-    const roomObj: rx.Observable<model.RoomState | null> = paramsLive.pipe(
-      rxop.map(p => p.room),
-      rxop.distinctUntilChanged(),
-      viewerGetUnlessEmpty(this.viewer, id => `rooms/${id}`),
-      rxop.map(json => JSON.parse(json) as model.RoomState | null),
-    );
-
     const setParamsReducer: rx.Observable<Transform> = paramsLive.pipe(
       rxop.map((newParams) => {
         window.sessionStorage.setItem('params', JSON.stringify(newParams));
         return (s: State) => ({ ...s, p: newParams });
       }),
+    );
+
+    const playerId = actions.setParams.pipe(
+      rxop.filter(p => 'player' in p),
+      rxop.map(p => p.player || ''),
+      rxop.startWith(initParams.player),
+    );
+
+    const playerObj: rx.Observable<Loadable<model.PlayerState>> = playerId.pipe(
+      viewerGetUnlessEmpty(this.viewer, id => `players/${id}`),
+    );
+    const roomObj: rx.Observable<Loadable<model.RoomState>> = actions.setParams.pipe(
+      rxop.filter(p => 'room' in p),
+      rxop.map(p => p.room || ''),
+      viewerGetUnlessEmpty(this.viewer, id => `rooms/${id}`),
     );
 
     const joinRoomReducer: rx.Observable<Transform> = actions.joinRoom.pipe(
@@ -125,18 +154,20 @@ class App extends React.Component<{}, State> {
       ),
     );
 
-    const getGames: rx.Observable<Transform> =
-      paramsLive.pipe(
-        rxop.map(x => x.player),
-        rxop.distinctUntilChanged(),
-        rxop.switchMap(id => this.viewer.list(knit.newCollectionRef(`players/${id}/games`))),
-        rxop.map(docs => docs.map(doc => {
-          const view = JSON.parse(doc.value) as model.PlayerGameView;
-          return { name: doc.documentRef.docId, value: view.view };
-        })),
-        rxop.startWith([]),
-        setPropertyReducer('games')
-      );
+    const getGames: rx.Observable<Transform> = playerId.pipe(
+      rxop.switchMap(id => {
+        if (id == "") {
+          return rx.of([]);
+        }
+        return this.viewer.list(knit.newCollectionRef(`players/${id}/games`))
+      }),
+      rxop.map(docs => docs.map(doc => {
+        const view = JSON.parse(doc.value) as model.PlayerGameView;
+        return { name: doc.documentRef.docId, value: view.view };
+      })),
+      rxop.startWith([]),
+      setPropertyReducer('games')
+    );
 
     const reducer: rx.Observable<Transform> = rx.merge(setParamsReducer,
       joinRoomReducer,
