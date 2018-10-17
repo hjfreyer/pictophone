@@ -2,10 +2,10 @@
 import * as immer from "immer";
 import * as status from '@hjfreyer/status';
 
-export type Game = Readonly<{
+export type Game = {
   permutation: number[];
   responses: string[][];
-}>;
+};
 
 export function newGame(permutation: number[]): Game {
   return {
@@ -34,11 +34,14 @@ function _submit(g: immer.DraftObject<Game>, player: number, word: string): Game
   return g;
 }
 
-export function submit(g: Game, player: number, word: string): [status.Status, Game] {
+export function submit(g: Readonly<Game>, player: number, word: string): [status.Status, Game] {
   try {
     const g2 = immer.produce(g, g => _submit(g, player, word));
     return [status.ok(), g2];
   } catch (s) {
+    if (!('code' in s)) {
+      throw s;
+    }
     return [s as status.Status, g];
   }
 

@@ -51,6 +51,7 @@ export class StorageViewer implements base.Viewer {
     return this.wrapper.events.pipe(
       rxop.filter(({ key }) => key == `${this.namespace}/${ref.docId}`),
       rxop.map(({ value }) => value),
+      rxop.startWith('null'),
     );
   }
 
@@ -102,7 +103,7 @@ export class Local implements base.System, base.DB {
           // TODO: properly handle null.
           this.wrapper.setItem(`${this.storageNamespace}/${key}`, res.updates[key]!);
         }
-        return res.result;
+        return Promise.resolve(res.result);
       }
 
       for (const id of res.additionalIds) {
