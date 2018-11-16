@@ -1,5 +1,26 @@
 import { Observable } from 'rxjs';
 
+export type ActionWrapper<T, R> = {
+  action: T
+  predecessors: string[]
+  timestampMillis: number
+  nonce: string
+  result: ActionResult<R>
+};
+
+export type ActionResult<R> = {
+  state: 'PENDING'
+} | {
+  state: 'READY'
+  result: R;
+};
+
+export type StateWrapper<T> = {
+  lastAction: string;
+  state: T;
+}
+
+
 export type Action = {
   action: string
   timeMillis: number
