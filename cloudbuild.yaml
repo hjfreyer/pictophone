@@ -1,0 +1,9 @@
+steps:
+- name: 'gcr.io/cloud-builders/yarn'
+  args: ['install']
+- name: 'gcr.io/cloud-builders/yarn'
+  args: ['run', 'build']
+  env:
+    - 'REACT_APP_ENV=$_ENV'
+- name: 'gcr.io/$PROJECT_ID/firebase'
+  args: ['deploy', '--project=$_HOSTING_PROJECT_ID']
