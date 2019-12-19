@@ -65,7 +65,7 @@ const PROD_CONFIG: Config = {
 }
 
 const QA_CONFIG: Config = {
-    backendAddr: 'https://pictophone-be-3u2pedngkq-ue.a.run.app',
+    backendAddr: 'https://pictophone-be-t2flyr2hcq-ue.a.run.app',
     firebase: DEV_FB,
 }
 
