@@ -1,6 +1,17 @@
 export type Config = {
     backendAddr: string
+    firebase: FirebaseConfig
+}
+
+type FirebaseConfig = {
+    apiKey: string
+    authDomain: string
+    databaseURL: string
+    projectId: string
     storageBucket: string
+    messagingSenderId: string
+    appId: string
+    measurementId?: string
 }
 
 type Environment = 'production' | 'qa' | 'test' | 'development'
@@ -21,19 +32,41 @@ export function getEnvironment(): Environment {
     }
 }
 
+const PROD_FB: FirebaseConfig = {
+    apiKey: "AIzaSyCzMg7Q2ByK5UxUd_x730LT8TmOmbA61MU",
+    authDomain: "pictophone-app.firebaseapp.com",
+    databaseURL: "https://pictophone-app.firebaseio.com",
+    projectId: "pictophone-app",
+    storageBucket: 'pictophone-app-drawings',
+    messagingSenderId: "837882351009",
+    appId: "1:837882351009:web:9056a6b26d58fb373ecfe0"
+}
+
+const DEV_FB: FirebaseConfig = {
+    apiKey: "AIzaSyBR4MaJ6AA73bHwu8U4tCMWDzLvWZZHa_U",
+    authDomain: "pictophone-dev.firebaseapp.com",
+    databaseURL: "https://pictophone-dev.firebaseio.com",
+    projectId: "pictophone-dev",
+    storageBucket: "pictophone-dev-drawings",
+    messagingSenderId: "601565992263",
+    appId: "1:601565992263:web:8b31e4b572140138f86862",
+    measurementId: "G-M5NXB21QCN"
+}
+
+
 const DEV_CONFIG: Config = {
     backendAddr: 'http://localhost:3000',
-    storageBucket: 'pictophone-app-drawings',
+    firebase: DEV_FB,
 }
 
 const PROD_CONFIG: Config = {
     backendAddr: 'https://api.pictophone.app',
-    storageBucket: 'pictophone-app-drawings',
+    firebase: PROD_FB,
 }
 
 const QA_CONFIG: Config = {
     backendAddr: 'https://pictophone-be-3u2pedngkq-ue.a.run.app',
-    storageBucket: 'pictophone-dev-drawings',
+    firebase: DEV_FB,
 }
 
 export default function Config(): Config {

@@ -16,17 +16,7 @@ import { Drawing, Upload, UploadResponse } from './model/rpc'
 import { validate as validateRpc } from './model/rpc.validator'
 import Export from './model/Export'
 
-const config = {
-    apiKey: "AIzaSyCzMg7Q2ByK5UxUd_x730LT8TmOmbA61MU",
-    authDomain: "pictophone-app.firebaseapp.com",
-    databaseURL: "https://pictophone-app.firebaseio.com",
-    projectId: "pictophone-app",
-    storageBucket: Config().storageBucket,
-    messagingSenderId: "837882351009",
-    appId: "1:837882351009:web:9056a6b26d58fb373ecfe0"
-}
-
-const app = firebase.initializeApp(config)
+const app = firebase.initializeApp(Config().firebase)
 const auth = app.auth()
 
 const uiConfig = {

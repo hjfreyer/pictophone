@@ -5,6 +5,7 @@ import Drawing from './Drawing'
 import { Drawing as DrawingModel } from './model/rpc'
 import { validate as validateRpc } from './model/rpc.validator'
 import * as exp from './model/Export'
+import config from './config'
 
 type GameViewProps = {
     playerGame: exp.PlayerGame
@@ -18,7 +19,7 @@ const GameView: React.FC<GameViewProps> = ({ playerGame, startGame, submitWord, 
         Players: {
             playerGame.playerOrder.map((p, idx) =>
                 <div key={idx}>{playerGame.players[p].displayName}</div>
-                )
+            )
         }
     </div>
 
@@ -189,7 +190,7 @@ const DownloadDrawing: React.FC<DownloadDrawingProps> = ({ drawingId, width, hei
     useEffect(() => {
         (async () => {
             const res = await fetch(
-                `https://storage.googleapis.com/pictophone-app-drawings/${drawingId}`, {
+                `https://storage.googleapis.com/${config().firebase.storageBucket}/${drawingId}`, {
 
             })
             const d = validateRpc('Upload')(await res.json())
