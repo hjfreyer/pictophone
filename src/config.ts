@@ -32,8 +32,8 @@ const PROD_CONFIG: Config = {
 }
 
 const QA_CONFIG: Config = {
-    backendAddr: 'https://api.pictophone.app',
-    storageBucket: 'pictophone-app-drawings',
+    backendAddr: 'https://pictophone-be-3u2pedngkq-ue.a.run.app',
+    storageBucket: 'pictophone-dev-drawings',
 }
 
 export default function Config(): Config {
