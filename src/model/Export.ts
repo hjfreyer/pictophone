@@ -1,70 +1,47 @@
 
-type Base = {
-    version: 'v1.2.0'
-    kind: 'player_game'
-    playerId: string
-    gameId: string
+export type BoringPlayerGame1_1 = {
+    state: 'UNSTARTED' | 'FIRST_PROMPT' | 'WAITING_FOR_PROMPT'
+    players: ExportedPlayer1_1[]
 }
 
-type WithPlayers = {
-    players: PlayerMap
-    playerOrder: string[]
+export type RespondToPromptPlayerGame1_1 = {
+    state: 'RESPOND_TO_PROMPT'
+    players: ExportedPlayer1_1[]
+    prompt: ActionSubmission1_0
 }
 
-export type PlayerMap = {
-    [playerId: string]: Player
+export type FinishedPlayerGame1_1 = {
+    state: 'GAME_OVER'
+    players: ExportedPlayer1_1[]
+    series: ExportedSeries1_0[]
 }
 
-export type Player = {
+export interface ExportedPlayer1_1 {
+    id: string
     displayName: string
 }
 
-export type UnstartedGame = WithPlayers & {
-    state: 'UNSTARTED'
+
+export type ExportedSeries1_0 = {
+    entries: ExportedSeriesEntry1_0[]
 }
 
-export type FirstPromptGame = WithPlayers & {
-    state: 'FIRST_PROMPT'
-}
-
-export type WaitingForPromptGame = WithPlayers & {
-    state: 'WAITING_FOR_PROMPT'
-}
-
-export type RespondToPromptGame = WithPlayers & {
-    state: 'RESPOND_TO_PROMPT'
-    prompt: Submission
-}
-
-export type FinishedGame = WithPlayers & {
-    state: 'GAME_OVER'
-    series: Series[]
-}
-
-export type Series = {
-    entries: SeriesEntry[]
-}
-
-export type SeriesEntry = {
+export type ExportedSeriesEntry1_0 = {
     playerId: string
-    submission: Submission
+    submission: ActionSubmission1_0
 }
 
-export type PlayerGame = (
-    UnstartedGame
-    | FirstPromptGame
-    | WaitingForPromptGame
-    | RespondToPromptGame
-    | FinishedGame
-)
-
-export type Submission = {
+export type ActionSubmission1_0 = {
     kind: 'word'
+
+    /**
+     * @minLength 1
+     * @maxLength 1024
+     * @contentMediaType text/plain
+     */
     word: string
 } | {
     kind: 'drawing'
     drawingId: string
 }
-
-export type Export = Base & PlayerGame
-export default Export
+export type PlayerGame1_1 = BoringPlayerGame1_1 | RespondToPromptPlayerGame1_1 | FinishedPlayerGame1_1

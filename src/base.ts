@@ -6,4 +6,4 @@ export type Dispatch = {
     upload(u: Upload): Promise<UploadResponse>
 }
 
-export const MODEL_VERSION = 'v1.2.0'
+export const MODEL_VERSION = '1.1'

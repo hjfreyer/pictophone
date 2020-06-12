@@ -3,7 +3,6 @@ import 'firebase/auth'
 import 'firebase/firestore'
 import React, { useEffect, useState } from 'react'
 import StyledFirebaseAuth from 'react-firebaseui/StyledFirebaseAuth'
-import { FirestoreDocument, FirestoreProvider } from 'react-firestore'
 import { BrowserRouter as Router, Redirect, Route, Switch, useLocation, useParams } from "react-router-dom"
 import './App.css'
 import * as base from './base'
@@ -11,12 +10,14 @@ import Config from './config'
 import GameView from './GameView'
 import Home from './Home'
 import Action from './model/Action'
-import validateExport from './model/Export.validator'
+import {validate as validateExport} from './model/Export.validator'
 import { Drawing, Upload, UploadResponse } from './model/rpc'
 import { validate as validateRpc } from './model/rpc.validator'
-import Export from './model/Export'
-
-const app = firebase.initializeApp(Config().firebase)
+import {ExportedPlayer1_1} from './model/Export'
+import {app} from './context';
+import {useValue} from './db';
+import * as tables from './tables';
+// const app = firebase.initializeApp(Config().firebase)
 const auth = app.auth()
 
 const uiConfig = {
@@ -47,6 +48,7 @@ type GamePageProps = {
 
 const GamePage: React.FC<GamePageProps> = ({ playerId, dispatch }) => {
     const { gameId } = useParams()
+    const game = useValue(tables.GAMES_BY_PLAYER, [playerId, gameId])
 
     const startGame = () => dispatch.action({
         version: base.MODEL_VERSION,
@@ -64,7 +66,7 @@ const GamePage: React.FC<GamePageProps> = ({ playerId, dispatch }) => {
     })
 
     const submitDrawing = async (drawing: Drawing) => {
-        const resp = await dispatch.upload({ kind: 'drawing', ...drawing })
+        const resp = await dispatch.upload(drawing)
         await dispatch.action({
             version: base.MODEL_VERSION,
             kind: "make_move",
@@ -74,21 +76,19 @@ const GamePage: React.FC<GamePageProps> = ({ playerId, dispatch }) => {
         })
     }
 
-    return <FirestoreDocument
-        path={`versions/${base.MODEL_VERSION}/players/${playerId}/games/${gameId}`}
-        render={({ isLoading, data }: { isLoading: boolean, data: any }) => {
-            if (isLoading) {
-                return <span>Loading...</span>
-            }
-            const pgAny: Export = validateExport(data)
-            return <GameView
-                playerGame={pgAny}
+    switch(game.state){
+        case 'loading':
+            return <span>Loading...</span>
+        case 'not_found':
+            return <span>Not found :(</span>
+        case 'ready':
+            return (<GameView
+                playerGame={game.value}
                 startGame={startGame}
                 submitWord={submitWord}
                 submitDrawing={submitDrawing}
-            />
-        }}
-    />
+            />)
+    }
 }
 
 async function postAction(body: Action): Promise<void> {
@@ -163,11 +163,9 @@ const Content: React.FC = () => {
 }
 
 const App: React.FC = () => {
-    return <FirestoreProvider firebase={firebase}>
-        <Router>
+    return         <Router>
             <Content />
         </Router>
-    </FirestoreProvider>
 }
 
 export default App

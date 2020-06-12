@@ -42,21 +42,20 @@ const PROD_FB: FirebaseConfig = {
     appId: "1:837882351009:web:9056a6b26d58fb373ecfe0"
 }
 
-const DEV_FB: FirebaseConfig = {
-    apiKey: "AIzaSyBR4MaJ6AA73bHwu8U4tCMWDzLvWZZHa_U",
-    authDomain: "pictophone-dev.firebaseapp.com",
-    databaseURL: "https://pictophone-dev.firebaseio.com",
-    projectId: "pictophone-dev",
-    storageBucket: "pictophone-dev-drawings",
-    messagingSenderId: "601565992263",
-    appId: "1:601565992263:web:8b31e4b572140138f86862",
-    measurementId: "G-M5NXB21QCN"
-}
+const TEST_FB: FirebaseConfig = {
+    apiKey: "AIzaSyAGXRsAOC3bHfWzbf-Xe6LMEFSu8996yOA",
+    authDomain: "pictophone-test.firebaseapp.com",
+    databaseURL: "https://pictophone-test.firebaseio.com",
+    projectId: "pictophone-test",
+    storageBucket: "pictophone-test.appspot.com",
+    messagingSenderId: "794693152973",
+    appId: "1:794693152973:web:0e0e7c89d77aa30b073984",
+    measurementId: "G-TL1FE9GRD6"
+};
 
-
-const DEV_CONFIG: Config = {
-    backendAddr: 'http://localhost:3000',
-    firebase: DEV_FB,
+const TEST_CONFIG: Config = {
+    backendAddr: 'http://localhost:3111',
+    firebase: TEST_FB,
 }
 
 const PROD_CONFIG: Config = {
@@ -66,13 +65,13 @@ const PROD_CONFIG: Config = {
 
 const QA_CONFIG: Config = {
     backendAddr: 'https://pictophone-be-t2flyr2hcq-ue.a.run.app',
-    firebase: DEV_FB,
+    firebase: TEST_FB,
 }
 
 export default function Config(): Config {
     switch (getEnvironment()) {
         case 'development':
-            return DEV_CONFIG
+            return TEST_CONFIG
         case 'production':
             return PROD_CONFIG
         case 'qa':

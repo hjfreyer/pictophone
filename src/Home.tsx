@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { FirestoreCollection } from 'react-firestore';
 import { Link } from 'react-router-dom';
 import * as base from './base';
+import {TableSpec, useCollection} from './db';
+import {validate} from './model/Export.validator';
+import * as tables from './tables';
 
 type HomeProps = {
     playerId: string
@@ -14,12 +17,14 @@ const Home: React.FC<HomeProps> = ({ playerId, defaultDisplayName, dispatch }) =
     const [displayName, setDisplayName] = useState(defaultDisplayName)
 
     const joinGame = () => dispatch.action({
-        version: 'v1.2.0',
+        version: '1.1',
         kind: "join_game",
         playerId,
         gameId,
-        displayName,
+        playerDisplayName: displayName,
     })
+
+    const games = useCollection(tables.GAMES_BY_PLAYER, [playerId]);
 
     return <div>
         <h1>User page for {playerId}</h1>
@@ -44,21 +49,13 @@ const Home: React.FC<HomeProps> = ({ playerId, defaultDisplayName, dispatch }) =
             </form>
         </div>
         <h2>Existing Games</h2>
-        <FirestoreCollection
-            path={`versions/0/players/${playerId}/games`}
-            render={({ isLoading, data }: { isLoading: boolean, data: any[] }) => (
-                <div>
-                    {
-                        isLoading
-                            ? <span>Loading...</span>
-                            : <div>
-                                {data.map((r) => (
-                                    <div key={r.id}>
-                                        <Link to={`/g/${r.id}`}>{r.id}</Link></div>))}
-                            </div>
-                    }
-                </div>
-            )} />
+        {games.state === 'loading' 
+            ? <div>Loading...</div>
+            : games.items.map(([[, gid], g]) => 
+                    <div key={gid}>
+                    <Link to={`/g/${gid}`}>{gid}</Link>
+                </div>)
+        }
     </div>
 }
 
