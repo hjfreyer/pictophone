@@ -13,6 +13,7 @@
     "firebase": "^7.4.0",
     "firebaseui": "^4.3.0",
     "immer": "^5.0.0",
+    "js-sha256": "^0.9.0",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "react-firebaseui": "^4.0.0",
@@ -25,7 +26,8 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "cpmodel": "sh -ex cpmodel.sh"
+    "cpmodel": "sh -ex cpmodel.sh",
+    "fmt:ts": "tsfmt -r"
   },
   "eslintConfig": {
     "extends": "react-app"
@@ -45,6 +47,7 @@
   "devDependencies": {
     "gh-pages": "^2.1.1",
     "react-scripts": "3.4.1",
+    "typescript-formatter": "^7.2.2",
     "typescript-json-validator": "^2.4.0"
   }
 }

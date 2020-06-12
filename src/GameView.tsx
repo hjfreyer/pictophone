@@ -6,6 +6,10 @@ import { Drawing as DrawingModel } from './model/rpc'
 import { validate as validateRpc } from './model/rpc.validator'
 import * as exp from './model/Export'
 import config from './config'
+import { app } from './context';
+import { Value } from './db';
+
+const storage = app.storage();
 
 type GameViewProps = {
     playerGame: exp.PlayerGame1_1
@@ -141,7 +145,7 @@ type SeriesProps = {
 const Series: React.FC<SeriesProps> = ({ serieses }) => {
     return <main id="sharing">
         <div className="series">
-            Scroll this way ->
+            Scroll this way -&gt;
         </div>
         {
             serieses.map((series, seriesIdx) => <div key={seriesIdx} className="series">
@@ -181,6 +185,40 @@ function widthForBox(width: number, height: number): number {
     return Math.min(width, widthFromHeight)
 }
 
+
+
+export function useDrawing(id: string): Value<DrawingModel> {
+    const [value, setValue] = useState<Value<DrawingModel>>({ state: 'loading' });
+    useEffect(() => {
+        (async (): Promise<void> => {
+            let url: string;
+            try {
+                url = await storage.ref(id).getDownloadURL();
+            } catch (e) {
+                console.log(e)
+                if (e.code === 'storage/object-not-found') {
+                    setValue({
+                        state: 'not_found'
+                    })
+                }
+                return
+            }
+            const res = await fetch(url);
+            console.log(res.status, res);
+            if (res.status === 200) {
+                const d = validateRpc('Upload')(await res.json())
+                setValue({
+                    state: 'ready',
+                    value: d
+                })
+            } else {
+                throw new Error(res.statusText)
+            }
+        })();
+    }, [id])
+    return value
+}
+
 type DownloadDrawingProps = {
     drawingId: string
     width: number
@@ -188,23 +226,17 @@ type DownloadDrawingProps = {
 }
 
 const DownloadDrawing: React.FC<DownloadDrawingProps> = ({ drawingId, width, height }) => {
-    const [downloaded, setDownloaded] = useState<DrawingModel | null>(null)
-    useEffect(() => {
-        (async () => {
-            const res = await fetch(
-                `https://storage.googleapis.com/${config().firebase.storageBucket}/${drawingId}`, {
+    const drawing = useDrawing(drawingId);
+    switch (drawing.state) {
+        case "loading":
+            return <div>Loading...</div>
+        case "not_found":
+            return <div>Not found :(</div>
+        case "ready":
+            return <Drawing drawing={drawing.value} width={width} height={height} />
 
-            })
-            const d = validateRpc('Upload')(await res.json())
-            setDownloaded(d)
-        })()
-    }, [drawingId])
-
-    if (downloaded === null) {
-        return <div>Loading...</div>
     }
 
-    return <Drawing drawing={downloaded} width={width} height={height} />
 
 }
 export default GameView

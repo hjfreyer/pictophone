@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { FirestoreCollection } from 'react-firestore';
 import { Link } from 'react-router-dom';
 import * as base from './base';
-import {TableSpec, useCollection} from './db';
-import {validate} from './model/Export.validator';
+import { TableSpec, useCollection } from './db';
+import { validate } from './model/Export.validator';
 import * as tables from './tables';
 
 type HomeProps = {
@@ -49,10 +49,10 @@ const Home: React.FC<HomeProps> = ({ playerId, defaultDisplayName, dispatch }) =
             </form>
         </div>
         <h2>Existing Games</h2>
-        {games.state === 'loading' 
+        {games.state === 'loading'
             ? <div>Loading...</div>
-            : games.items.map(([[, gid], g]) => 
-                    <div key={gid}>
+            : games.items.map(([[, gid], g]) =>
+                <div key={gid}>
                     <Link to={`/g/${gid}`}>{gid}</Link>
                 </div>)
         }
