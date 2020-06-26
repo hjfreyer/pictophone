@@ -4,7 +4,7 @@ import Canvas, { DraftDrawing } from './Canvas'
 import Drawing from './Drawing'
 import { Drawing as DrawingModel } from './model/rpc'
 import { validate as validateRpc } from './model/rpc.validator'
-import * as exp from './model/Export'
+import * as model from './model/1.1'
 import config from './config'
 import { app } from './context';
 import { Value } from './db';
@@ -12,7 +12,7 @@ import { Value } from './db';
 const storage = app.storage();
 
 type GameViewProps = {
-    playerGame: exp.PlayerGame1_1
+    playerGame: model.PlayerGame
     startGame: () => void
     submitWord: (word: string) => void
     submitDrawing: (s: DrawingModel) => void
@@ -45,7 +45,7 @@ const GameView: React.FC<GameViewProps> = ({ playerGame, startGame, submitWord, 
 }
 
 type ActiveGameProps = {
-    playerGame: exp.BoringPlayerGame1_1 | exp.RespondToPromptPlayerGame1_1
+    playerGame: model.BoringPlayerGame | model.RespondToPromptPlayerGame
     submitWord: (word: string) => void
     submitDrawing: (s: DrawingModel) => void
 }
@@ -107,7 +107,7 @@ const ActiveGame: React.FC<ActiveGameProps> = ({ playerGame, submitWord, submitD
     const canvasWidth = Math.min(canvasWidth1, dims.width * 0.95)
     const canvasHeight = canvasWidth * 4 / 3
 
-    const respond = (playerGame: exp.RespondToPromptPlayerGame1_1) =>
+    const respond = (playerGame: model.RespondToPromptPlayerGame) =>
         playerGame.prompt.kind === 'word'
             ? <main id="game">
                 <div className="word-prompt" >
@@ -139,7 +139,7 @@ const ActiveGame: React.FC<ActiveGameProps> = ({ playerGame, submitWord, submitD
 }
 
 type SeriesProps = {
-    serieses: exp.ExportedSeries1_0[]
+    serieses: model.ExportedSeries[]
 }
 
 const Series: React.FC<SeriesProps> = ({ serieses }) => {
@@ -157,7 +157,7 @@ const Series: React.FC<SeriesProps> = ({ serieses }) => {
     </main>
 }
 
-const Entry: React.FC<{ entry: exp.ExportedSeriesEntry1_0 }> = ({ entry }) => {
+const Entry: React.FC<{ entry: model.ExportedSeriesEntry }> = ({ entry }) => {
     const container = useRef<HTMLDivElement>(null)
     const [dims, setDims] = useState({ width: 0, height: 0 })
 

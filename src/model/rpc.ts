@@ -10,3 +10,7 @@ export type Upload = Drawing
 export type UploadResponse = {
     id: string
 }
+
+export interface Pointer {
+    actionId: string
+}

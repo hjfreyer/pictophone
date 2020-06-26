@@ -10,11 +10,12 @@ import * as base from './base'
 import Config from './config'
 import GameView from './GameView'
 import Home from './Home'
-import Action from './model/Action'
-import { validate as validateExport } from './model/Export.validator'
+import {Action} from './model/1.1'
+import * as model from './model/1.1'
+import * as db from './db';
+import { validate as validateModel } from './model/1.1.validator'
 import { Drawing, Upload, UploadResponse } from './model/rpc'
 import { validate as validateRpc } from './model/rpc.validator'
-import { ExportedPlayer1_1 } from './model/Export'
 import { app } from './context';
 import { useValue } from './db';
 import * as tables from './tables';
@@ -49,19 +50,47 @@ type GamePageProps = {
     dispatch: base.Dispatch
 }
 
+
+
+async function getPlayerGame(playerId: string, gameId: string): Promise<model.PlayerGame> {
+    const fetched = await fetch(`${Config().backendAddr}/1.1/players/${playerId}/games/${gameId}`, {
+        method: 'get',
+        mode: 'cors',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',       // receive json
+        },
+    })
+    return validateModel('PlayerGame')(await fetched.json())
+}
+
+export function usePlayerGame(playerId: string, gameId: string): db.Value<model.PlayerGame> {
+    const token = db.useConsistencyToken(`games/${gameId}`)
+
+    const [playerGame, setPlayerGame] = useState<db.Value<model.PlayerGame>>({ state: 'loading' });
+
+    useEffect(() => {
+        console.log("LOAD PG")
+        getPlayerGame(playerId, gameId).then(gl => setPlayerGame({
+            state: 'ready',
+            value: gl
+        }))
+    }, [playerId, token])
+
+    return playerGame
+}
+
 const GamePage: React.FC<GamePageProps> = ({ playerId, dispatch }) => {
     const { gameId } = useParams()
-    const game = useValue(tables.GAMES_BY_PLAYER, [playerId, gameId])
+    const game = usePlayerGame(playerId, gameId)
 
     const startGame = () => dispatch.action({
-        version: base.MODEL_VERSION,
         kind: "start_game",
         playerId: playerId!,
         gameId: gameId!
     })
 
     const submitWord = (word: string) => dispatch.action({
-        version: base.MODEL_VERSION,
         kind: "make_move",
         playerId: playerId!,
         gameId: gameId!,
@@ -71,7 +100,6 @@ const GamePage: React.FC<GamePageProps> = ({ playerId, dispatch }) => {
     const submitDrawing = async (drawing: Drawing) => {
         const resp = await dispatch.upload(drawing)
         await dispatch.action({
-            version: base.MODEL_VERSION,
             kind: "make_move",
             playerId: playerId!,
             gameId: gameId!,
@@ -95,7 +123,7 @@ const GamePage: React.FC<GamePageProps> = ({ playerId, dispatch }) => {
 }
 
 async function postAction(body: Action): Promise<void> {
-    await fetch(Config().backendAddr + '/action', {
+    await fetch(Config().backendAddr + '/1.1/action', {
         method: 'post',
         body: JSON.stringify(body),
         mode: 'cors',

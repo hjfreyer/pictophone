@@ -1,7 +1,10 @@
 
 export type Key = string[]
 
-export type Item<T> = [Key, T]
+export interface Item<T> {
+    key: Key, 
+    value: T,
+}
 
 export type ItemIterable<T> = AsyncIterable<Item<T>>
 
