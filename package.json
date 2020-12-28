@@ -5,6 +5,7 @@
   "dependencies": {
     "@firebase/app": "^0.6.5",
     "@firebase/firestore": "^1.5.1",
+    "@types/google-protobuf": "^3.7.4",
     "@types/jest": "24.0.22",
     "@types/node": "12.12.7",
     "@types/react": "16.9.11",
@@ -12,25 +13,28 @@
     "@types/react-router-dom": "^5.0.0",
     "firebase": "^7.4.0",
     "firebaseui": "^4.3.0",
+    "google-protobuf": "^3.14.0",
+    "grpc-web": "^1.2.1",
     "immer": "^5.0.0",
+    "ix": "^4.0.0",
     "js-sha256": "^0.9.0",
+    "pipe-ts": "^0.0.9",
+    "queueable": "^4.1.4",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "react-firebaseui": "^4.0.0",
+    "react-hook-form": "^6.13.1",
     "react-router": "^5.0.1",
     "react-router-dom": "^5.0.1",
     "typescript": "~3.7.2"
   },
   "scripts": {
-    "start": "PORT=8080 react-scripts start",
+    "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "cpmodel": "sh -ex cpmodel.sh",
     "fmt:ts": "tsfmt -r"
-  },
-  "eslintConfig": {
-    "extends": "react-app"
   },
   "browserslist": {
     "production": [
