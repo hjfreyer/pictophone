@@ -3,7 +3,8 @@ import ReactDOM from 'react-dom';
 import './index.css';
 import App from './App';
 import * as serviceWorker from './serviceWorker';
-import { PictophoneClient } from './gen/pictophone/V1_1ServiceClientPb';
+import { PictophoneClient } from './gen/pictophone/V0_1ServiceClientPb';
+import * as nav from './navigation';
 
 // (async () => {
 //     const root = document.getElementById('root');
@@ -16,8 +17,11 @@ import { PictophoneClient } from './gen/pictophone/V1_1ServiceClientPb';
 (async () => {
     const root = document.getElementById('root');
     const config = {
+    //    server: new PictophoneClient("https://grpcwebproxy-f2dxgbokta-ue.a.run.app"),
         server: new PictophoneClient("http://localhost:8080")
     };
+
+    
     let watchable = App(config);
     while (true) {
         ReactDOM.render(watchable.value, root);

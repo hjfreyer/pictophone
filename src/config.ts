@@ -14,22 +14,23 @@ type FirebaseConfig = {
     measurementId?: string
 }
 
-type Environment = 'production' | 'qa' | 'test' | 'development'
+type Environment = 'production' | 'test' | 'development'
 
 export function getEnvironment(): Environment {
-    switch (process.env.NODE_ENV) {
-        case 'development':
-        case 'test':
-            return process.env.NODE_ENV
-        case 'production':
-            switch (process.env.REACT_APP_ENV) {
-                case 'production':
-                case 'qa':
-                    return process.env.REACT_APP_ENV
-                default:
-                    throw new Error('undefined REACT_APP_ENV: ' + process.env.REACT_APP_ENV)
-            }
-    }
+    return process.env.NODE_ENV
+    // switch (process.env.NODE_ENV) {
+    //     case 'development':
+    //     case 'test':
+    //         return process.env.NODE_ENV
+    //     case 'production':
+    //         switch (process.env.REACT_APP_ENV) {
+    //             case 'production':
+    //             case 'qa':
+    //                 return process.env.REACT_APP_ENV
+    //             default:
+    //                 throw new Error('undefined REACT_APP_ENV: ' + process.env.REACT_APP_ENV)
+    //         }
+    // }
 }
 
 const PROD_FB: FirebaseConfig = {
@@ -71,10 +72,10 @@ const QA_CONFIG: Config = {
 export default function Config(): Config {
     switch (getEnvironment()) {
         case 'development':
-            return TEST_CONFIG
+            return QA_CONFIG
         case 'production':
-            return PROD_CONFIG
-        case 'qa':
+            return QA_CONFIG
+        case 'test':
             return QA_CONFIG
         default:
             throw new Error('unsupported')
