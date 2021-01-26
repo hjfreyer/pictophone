@@ -26,6 +26,7 @@
     "react-hook-form": "^6.13.1",
     "react-router": "^5.0.1",
     "react-router-dom": "^5.0.1",
+    "rxjs": "^6.6.3",
     "typescript": "~3.7.2"
   },
   "scripts": {
@@ -56,6 +57,8 @@
   },
   "eslintConfig": {
     "extends": "react-app",
-    "ignorePatterns": ["**/*_pb.js"]
+    "ignorePatterns": [
+      "**/*_pb.js"
+    ]
   }
 }

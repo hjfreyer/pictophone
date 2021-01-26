@@ -39,7 +39,7 @@ export class Nav {
     }
 }
 
-function parseLocation(pathname : string): Location {
+export function parseLocation(pathname : string): Location {
     const segments = pathname.split('/');
     console.log(segments)
     if (segments.length === 2 && segments[1] === '') {
@@ -51,7 +51,7 @@ function parseLocation(pathname : string): Location {
     return {page: 'unknown'}
 }
 
-function serializeLocation(location : Location): string {
+export function serializeLocation(location : Location): string {
     switch (location.page) {
         case 'home':
             return '/'

@@ -17,8 +17,8 @@ import * as nav from './navigation';
 (async () => {
     const root = document.getElementById('root');
     const config = {
-    //    server: new PictophoneClient("https://grpcwebproxy-f2dxgbokta-ue.a.run.app"),
-        server: new PictophoneClient("http://localhost:8080")
+       server: new PictophoneClient("https://server-f2dxgbokta-uc.a.run.app"),
+        // server: new PictophoneClient("http://localhost:8080")
     };
 
     
