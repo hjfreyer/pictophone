@@ -72,7 +72,7 @@ function foldState(backend: pb2.PictophoneClient, state: State, action: Action):
 
     switch (action.kind) {
         case 'navigate': {
-            window.history.pushState({}, '', nav.serializeLocation(action.location))
+            // window.history.pushState(action.location, '', nav.serializeLocation(action.location))
             return stateFromLocation(backend, action.location)
         }
         case 'join': {
@@ -203,33 +203,18 @@ type Action = {
 };
 
 const Link: React.FC<React.PropsWithChildren<{ location: nav.Location, dispatch: (a: Action) => void }>> = ({ location, dispatch, children }) => {
-    return <a href={nav.serializeLocation(location)} onClick={e => { e.preventDefault(); dispatch({ kind: 'navigate', location }); }}>
+    return <a href={nav.serializeLocation(location)} onClick={e => {
+        e.preventDefault();
+        window.history.pushState({}, '', nav.serializeLocation(location));
+        dispatch({ kind: 'navigate', location });
+    }
+    }>
         {children}
     </a>;
 };
 
 export function App({ server }: AppConfig): Watchable<JSX.Element> {
     const initial = stateFromLocation(server, nav.parseLocation(window.location.pathname));
-
-
-    // window.addEventListener('popstate', e=>{
-    //     console.log('POP', e);
-    //     e.preventDefault();
-    //     return false;
-    // })
-
-    const uiFromState2 = (state: Flatten<State>, dispatch: (a: Action) => void): JSX.Element => {
-        switch (state.state) {
-            case '404':
-                return <View s={state} dispatch={a => { }} />;
-
-            case 'LIST_GAMES':
-                return <View s={state} dispatch={dispatch} />;
-
-            case 'SHOW_GAME':
-                return <View s={state} dispatch={dispatch} />;
-        }
-    };
 
     const uiFromState = (state: Flatten<State>): [JSX.Element, Promise<Action>] => {
         let popState: Promise<Action> = new Promise((resolve) => {
@@ -238,29 +223,8 @@ export function App({ server }: AppConfig): Watchable<JSX.Element> {
         const sink = new ixa.AsyncSink<Action>();
         const nextAction = ixa.first(sink).then(a => a!);
 
-        return [uiFromState2(state, a=>sink.write(a)), Promise.race([nextAction, popState])];
-
-        switch (state.state) {
-            case '404': {
-                return [<View s={state} dispatch={a => { }} />, popState];
-            }
-            case 'LIST_GAMES': {
-                const sink = new ixa.AsyncSink<Action>();
-                const nextAction = ixa.first(sink).then(a => a!);
-                return [
-                    <View s={state} dispatch={a => sink.write(a)} />,
-                    Promise.race([nextAction, popState])
-                ];
-            }
-            case 'SHOW_GAME': {
-                const sink = new ixa.AsyncSink<Action>();
-                const nextAction = ixa.first(sink).then(a => a!);
-
-                const ui = <View s={state} dispatch={a => sink.write(a)} />;
-
-                return [ui, Promise.race([nextAction, popState])]
-            }
-        }
+        return [<View s={state} dispatch={a => sink.write(a)} />,
+        Promise.race([nextAction, popState])];
     };
 
     const fromState2 = (state: Watchable<State>): Watchable<JSX.Element> => {
@@ -292,100 +256,24 @@ export function App({ server }: AppConfig): Watchable<JSX.Element> {
             return flatten(state)
         })();
 
-        let [ui, nextAction] = uiFromState(flat)
+        let [ui, nextAction] = uiFromState(flat);
+        type NextState = { source: 'state', state: Watchable<State> } | { source: 'action', action: Action };
+        const nextState: Promise<NextState> = Promise.race([
+            flat2.next.then((state: Watchable<State>): NextState => ({ source: 'state', state })),
+            nextAction.then((action: Action): NextState => ({ source: 'action', action })),
+        ]);
         return {
             value: ui,
-            next: Promise.race([
-                flat2.next.then(state => fromState2(state)),
-                nextAction.then(action => fromState2(watch.fromConstant(foldState(server, state.value, action))))
-            ])
+            next: nextState.then(ns => {
+                if (ns.source === 'state') {
+                    return fromState2(ns.state);
+                } else {
+                    return fromState2(watch.fromConstant(foldState(server, state.value, ns.action)));
+                }
+            })
         }
-
-
-
-        // const wui :Watchable<[State, ]= pipeWith(flat, watch.map())
     };
     return fromState2(watch.fromConstant(initial));
-
-    // const fromState = (state: State): Watchable<JSX.Element> => {
-    //     let popStateNext: Promise<Watchable<JSX.Element>> = new Promise((resolve) => {
-    //         window.addEventListener('popstate', resolve, { once: true });
-    //     }).then((): Action => ({ kind: 'navigate', location: nav.parseLocation(document.location.pathname) })).then(action => fromState(foldState(server, state, action)));
-
-    //     switch (state.state) {
-    //         case '404': {
-    //             return {
-    //                 value: <View s={state} dispatch={a => { }} />,
-    //                 next: popStateNext,
-    //             }
-    //         }
-    //         case 'LIST_GAMES': {
-    //             let popStatePromise: Promise<Action> = new Promise((resolve) => {
-    //                 window.addEventListener('popstate', resolve, { once: true });
-    //             }).then(() => ({ kind: 'navigate', location: nav.parseLocation(document.location.pathname) }));
-    //             const sink = new ixa.AsyncSink<Action>();
-    //             const nextAction = ixa.first(sink).then(a => a!);
-    //             return {
-    //                 value: <View s={state} dispatch={a => sink.write(a)} />,
-    //                 next: Promise.race([
-    //                     nextAction.then(action => {
-    //                         const newState = foldState(server, state, action);
-    //                         return fromState(newState)
-    //                     }),
-    //                     popStateNext,
-    //                 ])
-
-    //             }
-    //         }
-    //         case 'SHOW_GAME': {
-    //             const popstatesNavs = ixa.fromEvent<PopStateEvent>(window, 'popstate').pipe(
-    //                 ixaop.map((): Action => ({
-    //                     kind: 'navigate',
-    //                     location: nav.parseLocation(document.location.pathname),
-    //                 })),
-    //                 ixaop.tap(v => console.log('NAV', v))
-    //             )[Symbol.asyncIterator]();
-    //             const sink = new ixa.AsyncSink<Action>();
-    //             const nextAction = ixa.first(sink).then(a => a!);
-    //             const flattenedState: Flatten<State> = { ...state, game: state.game.value };
-
-    //             const ui = <View s={flattenedState} dispatch={a => sink.write(a)} />;
-
-    //             return {
-    //                 value: ui,
-    //                 next: Promise.race([
-    //                     nextAction.then(action => {
-    //                         console.log("ACTION")
-    //                         const newState = foldState(server, state, action);
-    //                         return fromState(newState)
-    //                     }),
-    //                     popStateNext,
-    //                     state.game.next.then(nextGame => fromState({
-    //                         ...state,
-    //                         game: nextGame,
-    //                     }))
-    //                 ])
-
-    //             }
-    //         }
-    //     }
-    // };
-    // const state = initial;
-
-    // const flattenedState: Watchable<Flatten<State>> = state.state === 'SHOW_GAME'
-    //     ? pipeWith(state.game, watch.map(game => ({ ...state, game })))
-    //     : watch.fromConstant(state);
-
-    // const elemAndActions = pipeWith(flattenedState,
-    //     watch.map((state): [Flatten<State>, JSX.Element, AsyncIterable<Action>] => {
-    //         let sink = new ixa.AsyncSink<Action>();
-    //         return [state, <View s={state} dispatch={a => sink.write(a)} />, sink];
-    //     }));
-
-
-    //     })()
-    // };
-
 
     // const navigation = new nav.Nav();
 
@@ -489,8 +377,11 @@ const ListGames: React.FC<ListGamesProps> = ({ dispatch }) => {
     };
     const { register, handleSubmit, watch, errors } = useForm<Inputs>();
     const { register: joinRegister, handleSubmit: joinHandleSubmit } = useForm<Inputs>();
-    const onSubmit = (i: Inputs) =>
-        dispatch({ kind: "navigate", location: { page: 'game', ...i } });
+    const onSubmit = (i: Inputs) => {
+        const location: nav.Location = { page: 'game', ...i };
+        window.history.pushState({}, '', nav.serializeLocation(location));
+        dispatch({ kind: "navigate", location });
+    }
     const onJoin = (i: Inputs) => {
         dispatch({ kind: "join", ...i });
     };
