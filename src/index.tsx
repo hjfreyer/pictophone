@@ -1,27 +1,17 @@
-import React from 'react';
 import ReactDOM from 'react-dom';
-import './index.css';
 import App from './App';
-import * as serviceWorker from './serviceWorker';
 import { PictophoneClient } from './gen/pictophone/V0_1ServiceClientPb';
-import * as nav from './navigation';
-
-// (async () => {
-//     const root = document.getElementById('root');
-//     const config = {};
-//     for await (const view of App(config)) {
-//         ReactDOM.render(view, root);        
-//     }
-// })();
+import './index.css';
+import * as serviceWorker from './serviceWorker';
 
 (async () => {
     const root = document.getElementById('root');
     const config = {
-       server: new PictophoneClient("https://server-f2dxgbokta-uc.a.run.app"),
+        server: new PictophoneClient("https://envoy-f2dxgbokta-uc.a.run.app"),
         // server: new PictophoneClient("http://localhost:8080")
     };
 
-    
+
     let watchable = App(config);
     while (true) {
         ReactDOM.render(watchable.value, root);

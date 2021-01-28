@@ -34,6 +34,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
+    "deploy": "echo www.pictophone.app > build/CNAME ; gh-pages -b gh-pages -d build/",
     "cpmodel": "sh -ex cpmodel.sh",
     "fmt:ts": "tsfmt -r"
   },

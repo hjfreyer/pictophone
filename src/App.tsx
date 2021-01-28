@@ -1,78 +1,35 @@
-import firebase from 'firebase/app'
 import 'firebase/auth'
 import 'firebase/firestore'
 import 'firebase/storage'
-import React, { useEffect, useState } from 'react'
-import StyledFirebaseAuth from 'react-firebaseui/StyledFirebaseAuth'
-import { BrowserRouter as Router, Redirect, Route, Switch, useLocation, useParams } from "react-router-dom"
-import './App.css'
-import * as base from './base'
-import Config from './config'
-import GameView from './GameView'
-import Home from './Home'
-// import { Action } from './model/1.1'
-import * as model from './model/1.1'
-import * as db from './db';
-import { validate as validateModel } from './model/1.1.validator'
-import { Drawing, Upload, UploadResponse } from './model/rpc'
-import { validate as validateRpc } from './model/rpc.validator'
-import { app } from './context';
-import { useValue } from './db';
-import * as tables from './tables';
-import { sha256 } from 'js-sha256';
-import { Channel } from 'queueable';
-
-import * as pb from './gen/pictophone/v0_1_pb';
-import * as pb2 from './gen/pictophone/V0_1ServiceClientPb';
-
-import { Watchable, fromIterable } from './watch'
-import * as watch from './watch'
-import * as ixa from 'ix/asynciterable';
-import * as ixaop from 'ix/asynciterable/operators';
-import { pipeWith } from 'pipe-ts';
-import { useForm } from "react-hook-form";
 import { ClientReadableStream } from 'grpc-web'
-import * as nav from './navigation';
-
+import * as ixa from 'ix/asynciterable'
+import React from 'react'
+import { useForm } from "react-hook-form"
+import './App.css'
+import * as pb2 from './gen/pictophone/V0_1ServiceClientPb'
+import * as pb from './gen/pictophone/v0_1_pb'
+import * as nav from './navigation'
+import * as watch from './watch'
+import { Watchable } from './watch'
 
 export interface AppConfig {
     server: pb2.PictophoneClient
 }
 
-// type AuthInfo = { ready: false } | { ready: true, user: firebase.User | null }
-
-// interface Intent {
-//     // authInfo: AuthInfo
-//     location: nav.Location
-// }
-
-
 type State = {
-    //     state: 'LOADING'
-    // } | {
-    //     state: 'SIGNED_OUT'
-    // } | {
     state: 'LIST_GAMES'
 } | {
     state: 'SHOW_GAME'
     gameId: string
     playerId: string
-    game: Watchable<pb.GetGameResponse.AsObject | null>
+    game: Watchable<FetchedGame>
 } | {
     state: '404'
 };
 
 function foldState(backend: pb2.PictophoneClient, state: State, action: Action): State {
-    // if (!intent.authInfo.ready) {
-    //     return { state: 'LOADING' }
-    // }
-    // if (intent.authInfo.user === null) {
-    //     return { state: 'SIGNED_OUT' }
-    // }
-
     switch (action.kind) {
         case 'navigate': {
-            // window.history.pushState(action.location, '', nav.serializeLocation(action.location))
             return stateFromLocation(backend, action.location)
         }
         case 'join': {
@@ -83,13 +40,13 @@ function foldState(backend: pb2.PictophoneClient, state: State, action: Action):
                 resp => console.log("JOIN RESPONSE: ", resp.toObject()));
             return state;
         } case 'play': {
-            if (state.state !== 'SHOW_GAME' || state.game.value === null || !state.game.value.game || !state.game.value.game.started) {
+            if (state.state !== 'SHOW_GAME' || state.game.value === null || state.game.value.state !== 'ready' || !state.game.value.game.game || !state.game.value.game.game.started) {
                 throw new Error("invalid state for starting game.")
             }
             const req = new pb.MakeMoveRequest();
             req.setGameId(state.gameId);
             req.setPlayerId(state.playerId);
-            req.setEtag(state.game.value.game.started.etag);
+            req.setEtag(state.game.value.game.game.started.etag);
             backend.makeMove(req, null).then(
                 resp => console.log("PLAY RESPONSE: ", resp.toObject()));
             return state;
@@ -105,9 +62,9 @@ function foldState(backend: pb2.PictophoneClient, state: State, action: Action):
                 resp => console.log("START RESPONSE: ", resp.toObject()));
             return state;
         }
-
     }
 }
+
 function stateFromLocation(backend: pb2.PictophoneClient, location: nav.Location): State {
     switch (location.page) {
         case 'home':
@@ -126,67 +83,37 @@ function stateFromLocation(backend: pb2.PictophoneClient, location: nav.Location
     }
 }
 
-
-
-// function flatten(gs: State): Watchable<ViewData> {
-//     switch (gs.kind) {
-//         case 'LIST_GAMES':
-//             return watch.fromConstant({ state: 'LIST_GAMES' });
-//         case 'SHOW_GAME':
-//             return pipeWith(gs.game,
-//                 watch.map(game => ({ state: 'SHOW_GAME', gameId: gs.gameId, playerId: gs.playerId, game })));
-//     }
-// }
-
-// function render(data: ViewData): [JSX.Element, AsyncIterable<Action>] {
-//     let sink = new ixa.AsyncSink<Action>();
-//     return [<View s={data} dispatch={a=>sink.write(a)} />, sink];
-
-// }
-
-// interface Globals {
-//     authInfo: Watchable<AuthInfo>
-//     location: Watchable<nav.Location>
-// }
-
-
 type Flatten<T> = T extends Watchable<infer U> ? U : T extends Object ? { [K in keyof T]: Flatten<T[K]> } : T;
-type Flattened<T> = Watchable<Flatten<T>>;
 
-// interface Globals {
-//     authInfo: AuthInfo
-//     location: nav.Location
-// }
+type FetchedGame = {
+    state: 'loading'
+} | {
+    state: 'ready'
+    game: pb.GetGameResponse.AsObject
+} | {
+    state: 'disconnected'
+}
 
-// function flattenGlobals(input: Watchable<Globals>): Watchable<Flatten<Globals>> {
-//     const f = (w: Globals): Watchable<Flatten<Globals>> => ({
-//         value: {
-//             authInfo: w.authInfo.value,
-//             location: w.location.value,
-//         },
-//         next: Promise.race([w.authInfo.next.then(authInfo => f({
-//             authInfo,
-//             location: w.location
-//         })),
-//         w.location.next.then(location => f({
-//             authInfo: w.authInfo,
-//             location,
-//         }))])
-//     });
-
-//     return pipeWith(input, watch.switchMap(input => f(input)));
-// }
-
-function getGame(client: pb2.PictophoneClient, gameId: string, playerId: string): Watchable<pb.GetGameResponse.AsObject | null> {
+function getGame(client: pb2.PictophoneClient, gameId: string, playerId: string): Watchable<FetchedGame> {
     const req = new pb.GetGameRequest();
     req.setGameId(gameId);
     req.setPlayerId(playerId);
     const resp = client.getGame(req) as ClientReadableStream<pb.GetGameResponse>;
 
-    const sink = new ixa.AsyncSink<pb.GetGameResponse.AsObject>();
-    resp.on("error", e => console.log("TODO: handle this", e));
-    resp.on("data", d => { console.log("GAME: ", d.toObject()); sink.write(d.toObject()) });
-    return watch.fromIterable(sink, null);
+    const sink = new ixa.AsyncSink<FetchedGame>();
+    resp.on("error", e => {
+        console.error("during call to GetGame:", e)
+        sink.write({ state: 'disconnected' });
+        sink.end();
+    });
+    resp.on("data", d => {
+        sink.write({ state: 'ready', game: d.toObject() });
+    });
+    resp.on('end', () => {
+        sink.write({ state: 'disconnected' });
+        sink.end();
+    });
+    return watch.fromIterable(sink, { state: 'loading' });
 }
 
 type Action = {
@@ -274,81 +201,6 @@ export function App({ server }: AppConfig): Watchable<JSX.Element> {
         }
     };
     return fromState2(watch.fromConstant(initial));
-
-    // const navigation = new nav.Nav();
-
-    // const authInfoPromise: Promise<AuthInfo> = new Promise((resolve, reject) => auth.onAuthStateChanged((user: firebase.User | null) => resolve({ ready: true, user })));;
-    // const globals: Watchable<Globals> = watch.fromConstant({
-    //     authInfo: watch.fromPromise(authInfoPromise, { ready: false }),
-    //     location: watch.fromConstant(nav.parseLocation(window.location.pathname)),
-    // });
-
-
-
-    // const channel = new Channel<nav.Location>();
-    // const states: Watchable<ViewData> = pipeWith(globals, flattenGlobals, watch.switchMap(globals => {
-    //     if (!globals.authInfo.ready) {
-    //         return watch.fromConstant({ state: 'LOADING' })
-    //     }
-    //     if (globals.authInfo.user === null) {
-    //         return watch.fromConstant({ state: 'SIGNED_OUT' })
-    //     }
-
-
-    //     return flatten(integrate(server, globals.location));
-    // }));
-
-    // const integrate = (a: Action): void => {
-    //     switch (a.kind) {
-    //         case 'navigate':
-    //             navigation.push(a.location);
-    //             break;
-    //         case 'join': {
-    //             const req = new pb.JoinGameRequest();
-    //             req.setGameId(a.gameId);
-    //             req.setPlayerId(a.playerId);
-    //             server.joinGame(req, null).then(
-    //                 resp =>
-    //                     console.log("JOIN RESPONSE: ", resp.toObject()));
-    //             break
-    //         }
-    //         case 'start': {
-    //             const req = new pb.StartGameRequest();
-    //             req.setGameId(a.gameId);
-    //             req.setPlayerId(a.playerId);
-    //             server.startGame(req, null).then(
-    //                 resp =>
-    //                     console.log("START RESPONSE: ", resp.toObject()));
-    //             break
-    //         }
-    //         case 'play': {
-    //             const req = new pb.MakeMoveRequest();
-    //             req.setGameId(a.gameId);
-    //             req.setPlayerId(a.playerId);
-    //             req.setEtag(a.etag)
-    //             server.makeMove(req, null).then(
-    //                 resp =>
-    //                     console.log("PLAY RESPONSE: ", resp.toObject()));
-    //             break
-    //         }
-    //     }
-    // };
-
-    // const elemAndActions = pipeWith(states, watch.map(data => [data, render(data)]));
-
-    // const f = (eAndA: Watchable<[ViewData, [JSX.Element, AsyncIterable<Action>]]>): Watchable<JSX.Element> => ({
-    //     value: eAndA.value[1][0],
-    //     next: Promise.race([
-    //         eAndA.next.then(f),
-    //         ixa.first(eAndA.value[1][1]).then(action=> ),
-    //     ])
-    // });
-
-    // // return {
-    // //     value: elem_and_actions.value[0],
-    // //     next: Promise.race(elem_and_actions.next.then()
-    // // }
-    // return f(elemAndActions)
 }
 
 
@@ -406,61 +258,63 @@ const ListGames: React.FC<ListGamesProps> = ({ dispatch }) => {
 interface GameProps {
     gameId: string
     playerId: string
-    game: pb.GetGameResponse.AsObject | null
+    game: FetchedGame
     dispatch: (a: Action) => void
 }
 
 const Game: React.FC<GameProps> = ({ gameId, playerId, game, dispatch }) => {
-    if (!game) {
-        return <React.Fragment>
-            <Link location={{ page: 'home' }} dispatch={dispatch}>Get back</Link>
-            <h1>Game {gameId}</h1>
-            <pre>Loading</pre>
-        </React.Fragment>
+    switch (game.state) {
+        case 'disconnected': {
+            return <React.Fragment>
+                <h1>Game {gameId}</h1>
+                <pre>Disconnected. Try refreshing.</pre>
+            </React.Fragment>
+        }
 
-    }
+        case 'loading': {
+            return <React.Fragment>
+                <h1>Game {gameId}</h1>
+                <pre>Loading...</pre>
+            </React.Fragment>
+        }
 
-    if (!game.game) {
-        return <React.Fragment>
-            <Link location={{ page: 'home' }} dispatch={dispatch}>Get back</Link>
-            <h1>Game {gameId}</h1>
-            <pre>{JSON.stringify(game)}</pre>
-        </React.Fragment>
-    }
+        case 'ready': {
+            if (!game.game.game) {
+                return <React.Fragment>
+                    <h1>Game {gameId}</h1>
+                    <pre>Error: {JSON.stringify(game)}</pre>
+                </React.Fragment>
+            }
 
-    let g = game.game;
-    if (g.unstarted) {
-        return <React.Fragment>
-            <Link location={{ page: 'home' }} dispatch={dispatch}>Get back</Link>
-            <h1>Game {gameId}</h1>
-            <pre>
-                Players: {JSON.stringify(g.playerIdsList)}
-            </pre>
-            <button onClick={() => dispatch({ kind: 'start' })}>Start Game</button>
-        </React.Fragment>
+            let g = game.game.game;
+            if (g.unstarted) {
+                return <React.Fragment>
+                    <h1>Game {gameId}</h1>
+                    <pre>
+                        Players: {JSON.stringify(g.playerIdsList)}
+                    </pre>
+                    <button onClick={() => dispatch({ kind: 'start' })}>Start Game</button>
+                </React.Fragment>
 
-    } else if (g.started) {
-        let etag = g.started.etag;
-        return <React.Fragment>
-            <Link location={{ page: 'home' }} dispatch={dispatch}>Get back</Link>
-            <h1>Game {gameId}</h1>
-            <pre>Players: {JSON.stringify(g.playerIdsList)}</pre>
-            <pre>Mistakes: {g.started.numMistakes}</pre>
-            <pre>Round: {g.started.roundNum}</pre>
-            <pre>Already played: {JSON.stringify(g.started.numbersPlayedList)}</pre>
-            <pre>Your hand: {JSON.stringify(g.started.handList)}</pre>
-            <button onClick={() => dispatch({ kind: 'play' })}>Play</button>
-            <pre>
-                All: {JSON.stringify(g)}
-            </pre>
+            } else if (g.started) {
+                let etag = g.started.etag;
+                return <React.Fragment>
+                    <h1>Game {gameId}</h1>
+                    <pre>Players: {JSON.stringify(g.playerIdsList)}</pre>
+                    <pre>Mistakes: {g.started.numMistakes}</pre>
+                    <pre>Round: {g.started.roundNum}</pre>
+                    <pre>Already played: {JSON.stringify(g.started.numbersPlayedList)}</pre>
+                    <pre>Your hand: {JSON.stringify(g.started.handList)}</pre>
+                    <button className="play" onClick={() => dispatch({ kind: 'play' })}>Play</button>
+                    <pre>
+                        All: {JSON.stringify(g, null, 2)}
+                    </pre>
 
-        </React.Fragment>
-    } else {
-        return <React.Fragment>
-            <Link location={{ page: 'home' }} dispatch={dispatch}>Get back</Link>
-            <h1>Game {gameId}</h1>
-            <pre>Error: {JSON.stringify(game)}</pre>
-        </React.Fragment>
+                </React.Fragment>
+            } else {
+                throw new Error("unreachable")
+            }
+        }
     }
 };
 

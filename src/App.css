@@ -67,3 +67,8 @@ button.link {
     outline-width: 1px;
   }
 }
+
+button.play {
+  width: 100%;
+  height: 6em;
+}
