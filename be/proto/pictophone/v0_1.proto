@@ -1,0 +1,130 @@
+syntax = "proto3";
+
+package pictophone.v0_1;
+
+service Pictophone {
+    rpc JoinGame(JoinGameRequest) returns (JoinGameResponse);
+    rpc StartGame(StartGameRequest) returns (StartGameResponse);
+    rpc MakeMove(MakeMoveRequest) returns (MakeMoveResponse);
+    
+    rpc GetGame(GetGameRequest) returns (stream GetGameResponse);
+}
+
+message ActionRequest {
+    oneof method {
+        JoinGameRequest join_game_request = 1;
+        StartGameRequest start_game_request = 2;
+        MakeMoveRequest make_move_request = 3;
+    }
+}
+
+message ActionResponse {
+    oneof method {
+        JoinGameResponse join_game_response = 1;
+        StartGameResponse start_game_response = 2;
+        MakeMoveResponse make_move_response = 3;
+    }
+}
+
+message QueryRequest {
+    oneof method {
+        GetGameRequest get_game_request = 1;
+    }
+}
+
+message QueryResponse {
+    oneof method {
+        GetGameResponse get_game_response = 1;
+    }
+}
+
+message JoinGameRequest {
+    string game_id = 1;
+    string player_id = 2;
+}
+
+message JoinGameResponse {
+    oneof error {
+        UnknownError unknown_error = 1;
+        GameAlreadyStartedError game_already_started_error = 2;
+    }
+}
+
+message StartGameRequest {
+    string game_id = 1;
+    string player_id = 2;
+    uint64 random_seed = 3;
+}
+
+message StartGameResponse {
+    oneof error {
+        UnknownError unknown_error = 1;
+        PlayerNotInGameError player_not_in_game_error = 2;
+    }
+}
+
+message MakeMoveRequest {
+    string game_id = 1;
+    string player_id = 2;
+    uint64 etag = 3;
+}
+
+message MakeMoveResponse {
+    oneof error {
+        UnknownError unknown_error = 1;
+        MoveAbortedError move_aborted_error = 2;
+        PlayerNotInGameError player_not_in_game_error = 3;
+        GameNotStartedError game_not_started_error = 4;
+        EmptyHandError empty_hand_error = 5;
+    }
+}
+
+message GetGameRequest {
+    string game_id = 1;
+    string player_id = 2;
+}
+
+message GetGameResponse {
+    oneof error {
+        UnknownError unknown_error = 1;
+        PlayerNotInGameError player_not_in_game_error = 2;
+    }
+
+    Game game = 3;
+}
+
+message Game {
+    repeated string player_ids = 1;
+
+    message Unstarted {}
+    message Started {
+        uint64 etag = 1;
+        uint32 num_mistakes = 2;
+
+        uint32 round_num = 3;
+        repeated uint32 numbers_played = 4;
+        repeated uint32 hand = 5;
+    }
+
+    oneof state {
+        Unstarted unstarted = 2;
+        Started started = 3;
+    }
+}
+
+// Errors
+// ======
+message UnknownError {
+    string error = 1;
+}
+
+message GameAlreadyStartedError {}
+
+message GameNotStartedError {}
+
+message PlayerNotInGameError {}
+
+message MoveAbortedError {}
+
+message EmptyHandError {}
+

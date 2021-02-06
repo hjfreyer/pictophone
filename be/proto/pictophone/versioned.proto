@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package pictophone.versioned;
+
+import "pictophone/v0_1.proto";
+
+message ActionRequest {
+    oneof version {
+        pictophone.v0_1.ActionRequest v0p1 = 1;
+    }   
+}
+
+message ActionResponse {
+    oneof version {
+        pictophone.v0_1.ActionResponse v0p1 = 1;
+    }   
+}
+
+message QueryRequest {
+    oneof version {
+        pictophone.v0_1.QueryRequest v0p1 = 1;
+    }   
+}
+
+message QueryResponse {
+    oneof version {
+        pictophone.v0_1.QueryResponse v0p1 = 1;
+    }   
+}

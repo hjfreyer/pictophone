@@ -1,0 +1,52 @@
+[package]
+name = "server"
+version = "0.1.0"
+authors = ["Hunter Freyer <yt@hjfreyer.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+maplit = "1.0.2"
+anyhow = "1.0.34"
+serde = {version= "1.0.115", features = ["derive"]}
+serde_json = "1.0.59"
+#wasmtime = "0.22.0"
+#wasmtime-wasi = "0.22.0"
+#wasi-common = "0.22.0"
+bytes = "0.6.0"
+tonic = { version = "0.2", features = ["transport", "tls", "tls-roots"]}
+prost = "0.6"
+prost-types = "0.6"
+tokio = { version = "0.2", features = ["macros"] }
+thiserror = "1.0.22"
+paste = "1.0.4"
+futures = "0.3.8"
+log = "0.4.11"
+env_logger = "0.8.2"
+scopeguard = "1.1.0"
+config = "0.10.1"
+itertools = "0.10.0"
+rustls = "0.19.0"
+base64 = "0.13.0"
+ureq = "1.5.4"
+sync_wrapper = { git = "https://github.com/akiradeveloper/sync_wrapper.git", branch = "default-impl" }
+googapis = { version = "0.2", features = ["google-firestore-v1"] }
+serde_firestore = {path= "../serde_firestore"}
+serde_bytes = "0.11.5"
+
+[dependencies.wasmtime]
+git = "https://github.com/bytecodealliance/wasmtime.git"
+branch="main"
+
+[dependencies.wasmtime-wasi]
+git = "https://github.com/bytecodealliance/wasmtime.git"
+branch="main"
+
+[dependencies.wasi-common]
+git = "https://github.com/bytecodealliance/wasmtime.git"
+branch = "main"
+
+
+[build-dependencies]
+tonic-build = "0.2"

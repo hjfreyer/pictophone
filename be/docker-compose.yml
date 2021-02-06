@@ -1,0 +1,23 @@
+version: "3.9"  # optional since v1.27.0
+services:
+  server:
+    image: gcr.io/pictophone-test/server
+    build: 
+      context: .
+      dockerfile: ./config/server/Dockerfile
+    environment:
+      - RUST_LOG=info,server=trace
+    ports:
+      - "8080:8080"
+  envoy:
+    image: gcr.io/pictophone-test/envoy
+    build: 
+      context: .
+      dockerfile: ./config/envoy/Dockerfile
+    ports:
+      - "8080:8080"
+  server-deps:
+    image: gcr.io/pictophone-test/server-deps
+    build: 
+      context: .
+      dockerfile: ./config/server-deps/Dockerfile

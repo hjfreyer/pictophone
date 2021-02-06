@@ -1,0 +1,8 @@
+[workspace]
+
+members = [
+    "doltc",
+    "logic",
+    "serde_firestore",
+    "server",
+]
