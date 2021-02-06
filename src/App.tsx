@@ -154,39 +154,32 @@ export function App({ server }: AppConfig): Watchable<JSX.Element> {
         Promise.race([nextAction, popState])];
     };
 
-    const fromState2 = (state: Watchable<State>): Watchable<JSX.Element> => {
+    // const unfold = (state: Flatten<State>, )
+
+    const fromState2 = (state: State): Watchable<JSX.Element> => {
         let flat = ((): Flatten<State> => {
-            switch (state.value.state) {
+            switch (state.state) {
                 case '404':
                 case 'LIST_GAMES':
-                    return state.value;
+                    return state;
                 case 'SHOW_GAME':
-                    return { ...state.value, game: state.value.game.value };
+                    return { ...state, game: state.game.value };
             }
         })();
-        let flat2 = ((): Watchable<State> => {
-            function flatten(state: Watchable<State>): Watchable<State> {
-                switch (state.value.state) {
-                    case '404':
-                    case 'LIST_GAMES':
-                        return state;
-                    case 'SHOW_GAME':
-                        return {
-                            value: state.value,
-                            next: Promise.race([
-                                state.next,
-                                state.value.game.next.then(game => flatten(watch.fromConstant({ ...state.value, game }))),
-                            ])
-                        };
-                }
+        let flat2 = ((): Promise<State> => {
+            switch (state.state) {
+                case '404':
+                case 'LIST_GAMES':
+                    return Promise.race([]);
+                case 'SHOW_GAME':
+                    return state.game.next.then(game => ({ ...state, game }));
             }
-            return flatten(state)
         })();
 
         let [ui, nextAction] = uiFromState(flat);
-        type NextState = { source: 'state', state: Watchable<State> } | { source: 'action', action: Action };
+        type NextState = { source: 'state', state: State } | { source: 'action', action: Action };
         const nextState: Promise<NextState> = Promise.race([
-            flat2.next.then((state: Watchable<State>): NextState => ({ source: 'state', state })),
+            flat2.then((state: State): NextState => ({ source: 'state', state })),
             nextAction.then((action: Action): NextState => ({ source: 'action', action })),
         ]);
         return {
@@ -195,15 +188,13 @@ export function App({ server }: AppConfig): Watchable<JSX.Element> {
                 if (ns.source === 'state') {
                     return fromState2(ns.state);
                 } else {
-                    return fromState2(watch.fromConstant(foldState(server, state.value, ns.action)));
+                    return fromState2(foldState(server, state, ns.action));
                 }
             })
         }
     };
-    return fromState2(watch.fromConstant(initial));
+    return fromState2(initial);
 }
-
-
 
 interface ViewProps {
     s: Flatten<State>
@@ -297,26 +288,39 @@ const Game: React.FC<GameProps> = ({ gameId, playerId, game, dispatch }) => {
                 </React.Fragment>
 
             } else if (g.started) {
-                let etag = g.started.etag;
-                return <React.Fragment>
-                    <h1>Game {gameId}</h1>
-                    <pre>Players: {JSON.stringify(g.playerIdsList)}</pre>
-                    <pre>Mistakes: {g.started.numMistakes}</pre>
-                    <pre>Round: {g.started.roundNum}</pre>
-                    <pre>Already played: {JSON.stringify(g.started.numbersPlayedList)}</pre>
-                    <pre>Your hand: {JSON.stringify(g.started.handList)}</pre>
-                    <button className="play" onClick={() => dispatch({ kind: 'play' })}>Play</button>
-                    <pre>
-                        All: {JSON.stringify(g, null, 2)}
-                    </pre>
-
-                </React.Fragment>
+                return <StartedGame gameId={gameId} game={g.started} dispatch={dispatch} />
             } else {
                 throw new Error("unreachable")
             }
         }
     }
 };
+
+interface StartedGameProps {
+    gameId: string
+    // playerId: string
+    game: pb.Game.Started.AsObject
+    dispatch: (a: Action) => void
+}
+
+const StartedGame : React.FC<StartedGameProps> = ({gameId, game, dispatch}): JSX.Element=> {
+    const hand = [...game.handList];
+    hand.reverse();
+
+    return <React.Fragment>
+        <div className="top">
+            <div className="round">{game.roundNum}</div>
+            <div className="mistakes">
+                {[...Array(game.numMistakes)].map((_, i) => <span key={i} className="fail"/>)}
+            </div>
+        </div>
+        <div className="last-play">{game.numbersPlayedList[game.numbersPlayedList.length-1]}</div>
+        <div className="next-play" onClick={() => dispatch({ kind: 'play' })}>{hand[0]}</div>
+        <div className="hand">
+            {hand.slice(1).map((card, idx) => <span className="card" key={idx}>{card}</span>)}
+        </div>
+    </React.Fragment>;
+}
 
 // // const app = firebase.initializeApp(Config().firebase)
 // const auth = app.auth()

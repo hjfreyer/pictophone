@@ -72,3 +72,55 @@ button.play {
   width: 100%;
   height: 6em;
 }
+
+#root {
+  padding: 0.5em;
+}
+
+div.top {
+  height: 5%;
+  display: flex;
+  flex-flow: row nowrap;
+}
+
+.round::before {
+  content: 'Round: '
+}
+
+.mistakes::before {
+  content: 'Mistakes: ';
+  margin-left: 2em;
+}
+
+.mistakes .fail::before {
+  content: 'X';
+  margin: 0.2em;
+}
+
+.last-play {
+  height: 45%;
+  font-size: 12em;
+  border: 1px solid gray;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.next-play {
+  height: 45%;
+  font-size: 12em;
+  border: 1px solid gray;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: lightgrey;
+}
+
+.hand::before {
+  content: 'and then: '
+}
+
+.hand .card {
+  margin: 0.1em;
+  font-size: 1.5em;
+}
