@@ -1,4 +1,4 @@
-use crate::{proto::dolt::VersionedActionRequestBytes, util::aovec};
+use crate::{proto::dolt::ActionRequestBytes, util::aovec};
 use fs::firestore_client::FirestoreClient;
 use futures::{Future, Stream};
 use googapis::google::firestore::v1 as fs;
@@ -11,9 +11,9 @@ use std::{
 
 #[tonic::async_trait]
 pub trait Datastore {
-    async fn push_action(&self, action: VersionedActionRequestBytes) -> anyhow::Result<u64>;
+    async fn push_action(&self, action: ActionRequestBytes) -> anyhow::Result<u64>;
 
-    type LogStream: Stream<Item = anyhow::Result<VersionedActionRequestBytes>> + Send + Sync + Unpin;
+    type LogStream: Stream<Item = anyhow::Result<ActionRequestBytes>> + Send + Sync + Unpin;
     async fn watch_log(&self) -> anyhow::Result<Self::LogStream>;
 }
 
@@ -24,18 +24,18 @@ pub fn local() -> Local {
 }
 
 pub struct Local {
-    actions: aovec::AOVec<VersionedActionRequestBytes>,
+    actions: aovec::AOVec<ActionRequestBytes>,
 }
 
 #[tonic::async_trait]
 impl Datastore for Local {
-    async fn push_action(&self, action: VersionedActionRequestBytes) -> anyhow::Result<u64> {
+    async fn push_action(&self, action: ActionRequestBytes) -> anyhow::Result<u64> {
         use std::convert::TryInto;
         Ok(self.actions.push(action).await.try_into().unwrap())
     }
 
     type LogStream =
-        Pin<Box<dyn Stream<Item = anyhow::Result<VersionedActionRequestBytes>> + Send + Sync>>;
+        Pin<Box<dyn Stream<Item = anyhow::Result<ActionRequestBytes>> + Send + Sync>>;
 
     async fn watch_log(&self) -> anyhow::Result<Self::LogStream> {
         todo!()
@@ -60,7 +60,7 @@ pub struct Firestore {
     cache: RwLock<
         Vec<
             futures::future::Shared<
-                futures::future::BoxFuture<'static, VersionedActionRequestBytes>,
+                futures::future::BoxFuture<'static, ActionRequestBytes>,
             >,
         >,
     >,
@@ -116,7 +116,7 @@ impl FirestoreHandle {
     }
 
     // Not found => error
-    async fn fetch_action(self, index: u64) -> anyhow::Result<VersionedActionRequestBytes> {
+    async fn fetch_action(self, index: u64) -> anyhow::Result<ActionRequestBytes> {
         let doc = self
             .client
             .clone()
@@ -130,7 +130,7 @@ impl FirestoreHandle {
 
         let action: ActionRecord = serde_firestore::from_doc(&doc)?;
 
-        Ok(VersionedActionRequestBytes::new(action.serialized.to_vec()))
+        Ok(ActionRequestBytes::new(action.serialized.to_vec()))
     }
 
     async fn watch_log_len(self) -> anyhow::Result<impl Stream<Item = anyhow::Result<u64>>> {
@@ -188,7 +188,7 @@ impl Firestore {
     async fn fetch_action(
         self: Arc<Self>,
         index: u64,
-    ) -> anyhow::Result<VersionedActionRequestBytes> {
+    ) -> anyhow::Result<ActionRequestBytes> {
         trace!("Fetching action with index {}", index);
         use futures::FutureExt;
         // let x = self.cache.read();
@@ -220,7 +220,7 @@ impl Firestore {
 
 #[tonic::async_trait]
 impl Datastore for Arc<Firestore> {
-    async fn push_action(&self, action: VersionedActionRequestBytes) -> anyhow::Result<u64> {
+    async fn push_action(&self, action: ActionRequestBytes) -> anyhow::Result<u64> {
         use std::convert::TryInto;
         let handle = self.handle.to_owned();
         let mut client = handle.client.to_owned();
@@ -299,7 +299,7 @@ impl Datastore for Arc<Firestore> {
     }
 
     type LogStream =
-        Pin<Box<dyn Stream<Item = anyhow::Result<VersionedActionRequestBytes>> + Send + Sync>>;
+        Pin<Box<dyn Stream<Item = anyhow::Result<ActionRequestBytes>> + Send + Sync>>;
 
     async fn watch_log(&self) -> anyhow::Result<Self::LogStream> {
         use futures::TryStreamExt;

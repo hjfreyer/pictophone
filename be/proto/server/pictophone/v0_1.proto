@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+import "pictophone/messages.proto";
+
+package pictophone.v0_1;
+
+service Pictophone {
+    rpc JoinGame(pictophone.messages.JoinGameRequest) returns (pictophone.messages.JoinGameResponse);
+    rpc StartGame(pictophone.messages.StartGameRequest) returns (pictophone.messages.StartGameResponse);
+    rpc MakeMove(pictophone.messages.MakeMoveRequest) returns (pictophone.messages.MakeMoveResponse);
+    
+    rpc GetGame(pictophone.messages.GetGameRequest) returns (stream pictophone.messages.GetGameResponse);
+}

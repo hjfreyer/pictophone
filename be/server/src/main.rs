@@ -72,8 +72,8 @@ where
         runner: &runner::Runner<P>,
         version: &Option<binaries::Version>,
         state_bytes: Option<StateBytes>,
-        action_bytes: dpb::VersionedActionRequestBytes,
-    ) -> anyhow::Result<(Option<StateBytes>, dpb::VersionedActionResponseBytes)> {
+        action_bytes: dpb::ActionRequestBytes,
+    ) -> anyhow::Result<(Option<StateBytes>, dpb::ActionResponseBytes)> {
         use std::convert::TryFrom;
 
         let request = dpb::Request::from(dpb::ActionRequest {
@@ -87,7 +87,7 @@ where
         let response = dpb::ActionResponse::try_from(response)?;
 
         let new_state_bytes: Option<StateBytes> = response.state.map(StateBytes::from);
-        let response_bytes = dpb::VersionedActionResponseBytes::new(response.response);
+        let response_bytes = dpb::ActionResponseBytes::new(response.response);
 
         Ok((new_state_bytes.or(state_bytes), response_bytes))
     }
@@ -96,7 +96,7 @@ where
         self: std::sync::Arc<Self>,
         version: Option<binaries::Version>,
     ) -> anyhow::Result<
-        impl Stream<Item = anyhow::Result<(Option<StateBytes>, dpb::VersionedActionResponseBytes)>>,
+        impl Stream<Item = anyhow::Result<(Option<StateBytes>, dpb::ActionResponseBytes)>>,
     > {
         use futures::StreamExt;
 
@@ -148,9 +148,9 @@ where
 {
     async fn handle_action(
         &self,
-        action: dpb::VersionedActionRequestBytes,
+        action: dpb::ActionRequestBytes,
         metadata: tonic::metadata::MetadataMap,
-    ) -> Result<dpb::VersionedActionResponseBytes, anyhow::Error> {
+    ) -> Result<dpb::ActionResponseBytes, anyhow::Error> {
         use futures::StreamExt;
         use futures::TryStreamExt;
         use std::convert::TryInto;
@@ -159,7 +159,7 @@ where
         trace!(target: "action", "Action committed");
 
         let version = get_binary_version(&metadata);
-        let mut states: Vec<(Option<StateBytes>, dpb::VersionedActionResponseBytes)> =
+        let mut states: Vec<(Option<StateBytes>, dpb::ActionResponseBytes)> =
             util::end_after_error(self.clone().state_stream(version).await?)
                 .inspect_err(
                     |e| error!(target: "action", "swallowing error in handle_action: {:?}", e),
@@ -193,14 +193,14 @@ where
 
     type QueryStream = Pin<
         Box<
-            dyn Stream<Item = Result<dpb::VersionedQueryResponseBytes, anyhow::Error>>
+            dyn Stream<Item = Result<dpb::QueryResponseBytes, anyhow::Error>>
                 + Send
                 + Sync,
         >,
     >;
     async fn handle_query(
         &self,
-        query: dpb::VersionedQueryRequestBytes,
+        query: dpb::QueryRequestBytes,
         metadata: tonic::metadata::MetadataMap,
     ) -> Result<Self::QueryStream, anyhow::Error> {
         use futures::TryStreamExt;
@@ -235,7 +235,7 @@ where
                         )
                         .await?;
                     let response = dpb::QueryResponse::try_from(response)?;
-                    Ok(dpb::VersionedQueryResponseBytes::new(response.response))
+                    Ok(dpb::QueryResponseBytes::new(response.response))
                 }
             });
         let result = sync_wrapper::ext::SyncStream::new(result);

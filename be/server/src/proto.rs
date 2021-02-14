@@ -37,6 +37,36 @@ macro_rules! oneof_convert {
     };
 }
 
+macro_rules! oneof_enum_convert {
+    ($enum_type:ty, $($elem_type:ident, )+) => {
+        oneof_enum_convert!($enum_type, $(($elem_type, $elem_type), )+);
+    };
+    ($enum_type:ty, $(($elem_type:ty, $elem_field_name:ident), )*) => {
+        paste::paste!{
+            $(
+                impl From<$elem_type> for $enum_type {
+                    fn from(e: $elem_type) -> Self {
+                        $enum_type::$elem_field_name(e)
+                    }
+                }
+
+                impl std::convert::TryFrom<$enum_type> for $elem_type {
+                    type Error = $crate::proto::WrongOneofSelected;
+                    fn try_from(value: $enum_type) -> Result<Self, Self::Error> {
+                        match value {
+                            $enum_type :: $elem_field_name(e) => Ok(e),
+                            _ => Err($crate::proto::WrongOneofSelected{
+                                wanted: stringify!($enum_type :: $elem_field_name),
+                                got:format!("{:?}", value),
+                            }),
+                        }
+                    }
+                }
+            )*
+        }
+    };
+}
+
 pub mod dolt {
     tonic::include_proto!("dolt");
 
@@ -62,68 +92,65 @@ pub mod dolt {
         };
     }
 
-    typed_bytes!(VersionedActionRequestBytes);
-    typed_bytes!(VersionedActionResponseBytes);
-    typed_bytes!(VersionedQueryRequestBytes);
-    typed_bytes!(VersionedQueryResponseBytes);
+    typed_bytes!(ActionRequestBytes);
+    typed_bytes!(ActionResponseBytes);
+    typed_bytes!(QueryRequestBytes);
+    typed_bytes!(QueryResponseBytes);
 
     #[tonic::async_trait]
     pub trait Server: Send + Sync + 'static {
         async fn handle_action(
             &self,
-            action: VersionedActionRequestBytes,
+            action: ActionRequestBytes,
             metadata: tonic::metadata::MetadataMap,
-        ) -> Result<VersionedActionResponseBytes, anyhow::Error>;
+        ) -> Result<ActionResponseBytes, anyhow::Error>;
 
-        type QueryStream: futures::Stream<Item = Result<VersionedQueryResponseBytes, anyhow::Error>>
+        type QueryStream: futures::Stream<Item = Result<QueryResponseBytes, anyhow::Error>>
             + Send
             + Sync;
 
         async fn handle_query(
             &self,
-            query: VersionedQueryRequestBytes,
+            query: QueryRequestBytes,
             metadata: tonic::metadata::MetadataMap,
         ) -> Result<Self::QueryStream, anyhow::Error>;
     }
 }
 
 pub mod pictophone {
-    pub mod versioned {
-        use std::convert::TryFrom;
+    pub mod messages {
+        tonic::include_proto!("pictophone.messages");
+    }
 
-        tonic::include_proto!("pictophone.versioned");
+    pub mod log {
+        tonic::include_proto!("pictophone.log");
 
-        macro_rules! version {
-            ($version_mod:ident, $version_enum:ident) => {
-                oneof_convert!(
-                    ActionRequest,
-                    version,
-                    (super::$version_mod::ActionRequest, $version_enum),
-                );
-                oneof_convert!(
-                    ActionResponse,
-                    version,
-                    (super::$version_mod::ActionResponse, $version_enum),
-                );
-                oneof_convert!(
-                    QueryRequest,
-                    version,
-                    (super::$version_mod::QueryRequest, $version_enum),
-                );
-                oneof_convert!(
-                    QueryResponse,
-                    version,
-                    (super::$version_mod::QueryResponse, $version_enum),
-                );
+        macro_rules! oneof_log_enum_convert {
+            ($enum_type:ty, $($elem_type:ident, )+) => {
+                oneof_enum_convert!($enum_type, $((super::messages::$elem_type, $elem_type), )+);
             };
         }
 
-        version!(v0_1, V0p1);
+        oneof_log_enum_convert!(
+            action_request::Method,
+            JoinGameRequest,
+            StartGameRequest,
+            MakeMoveRequest,
+        );
+        oneof_log_enum_convert!(
+            action_response::Method,
+            JoinGameResponse,
+            StartGameResponse,
+            MakeMoveResponse,
+        );
+
+        oneof_log_enum_convert!(query_request::Method, GetGameRequest,);
+        oneof_log_enum_convert!(query_response::Method, GetGameResponse,);
 
         macro_rules! serialize {
             ($name:ident) => {
                 paste::paste!{
-                    impl TryFrom<$name> for super::super::dolt::[<Versioned $name Bytes>] {
+                    impl std::convert::TryFrom<$name> for super::super::dolt::[<$name Bytes>] {
                         type Error = prost::EncodeError;
 
                         fn try_from(value: $name) -> Result<Self, Self::Error> {
@@ -135,10 +162,10 @@ pub mod pictophone {
                     }
 
 
-                    impl TryFrom<super::super::dolt::[<Versioned $name Bytes>]> for $name  {
+                    impl std::convert::TryFrom<super::super::dolt::[<$name Bytes>]> for $name  {
                         type Error = prost::DecodeError;
 
-                        fn try_from(value: super::super::dolt::[<Versioned $name Bytes>]) -> Result<Self, Self::Error> {
+                        fn try_from(value: super::super::dolt::[<$name Bytes>]) -> Result<Self, Self::Error> {
                             use prost::Message;
                             Self::decode(value.into_bytes().as_slice())
                         }
@@ -152,56 +179,13 @@ pub mod pictophone {
         serialize!(QueryRequest);
         serialize!(QueryResponse);
     }
-
     pub mod v0_1 {
+        use super::messages::*;
+
         tonic::include_proto!("pictophone.v0_1");
 
-        oneof_convert!(QueryRequest, method, GetGameRequest,);
-        oneof_convert!(QueryResponse, method, GetGameResponse,);
-
-        oneof_convert!(
-            ActionRequest,
-            method,
-            JoinGameRequest,
-            StartGameRequest,
-            MakeMoveRequest,
-        );
-        oneof_convert!(
-            ActionResponse,
-            method,
-            JoinGameResponse,
-            StartGameResponse,
-            MakeMoveResponse,
-        );
-
-        macro_rules! action_body {
-            ($self:expr, $request:expr) => {{
-                use std::convert::TryFrom;
-                use std::convert::TryInto;
-                let metadata = $request.metadata().to_owned();
-
-                let versioned = super::versioned::ActionRequest::from(ActionRequest::from(
-                    $request.into_inner(),
-                ));
-
-                $self
-                    .handle_action(
-                        versioned.try_into().map_err(|e| {
-                            tonic::Status::internal(format!("Internal error: {:#}", e))
-                        })?,
-                        metadata,
-                    )
-                    .await
-                    .and_then(|r| {
-                        Ok(tonic::Response::new(
-                            ActionResponse::try_from(super::versioned::ActionResponse::try_from(
-                                r,
-                            )?)?
-                            .try_into()?,
-                        ))
-                    })
-                    .map_err(|e| tonic::Status::internal(format!("Internal error: {:#}", e)))
-            }};
+        fn into_internal(error: anyhow::Error) -> tonic::Status {
+            tonic::Status::internal(format!("Unexpected error: {:#}", &error))
         }
 
         #[tonic::async_trait]
@@ -210,21 +194,108 @@ pub mod pictophone {
                 &self,
                 request: tonic::Request<JoinGameRequest>,
             ) -> Result<tonic::Response<JoinGameResponse>, tonic::Status> {
-                action_body!(self, request)
+                use anyhow::Context;
+                use std::convert::TryFrom;
+                use std::convert::TryInto;
+                let metadata = request.metadata().to_owned();
+
+                let action_request_bytes = super::log::ActionRequest {
+                    method: Some(request.into_inner().into()),
+                }
+                .try_into()
+                .context("while deserializing ActionRequest")
+                .map_err(into_internal)?;
+
+                let response = self
+                    .handle_action(action_request_bytes, metadata)
+                    .await
+                    .context("while calling handle_action")
+                    .map_err(into_internal)?;
+
+                let response = super::log::ActionResponse::try_from(response)
+                    .context("while parsing action_response")
+                    .map_err(into_internal)?;
+
+                Ok(tonic::Response::new(
+                    response
+                        .method
+                        .unwrap()
+                        .try_into()
+                        .context("while selecting method")
+                        .map_err(into_internal)?,
+                ))
             }
 
             async fn start_game(
                 &self,
                 request: tonic::Request<StartGameRequest>,
             ) -> Result<tonic::Response<StartGameResponse>, tonic::Status> {
-                action_body!(self, request)
+                use anyhow::Context;
+                use std::convert::TryFrom;
+                use std::convert::TryInto;
+                let metadata = request.metadata().to_owned();
+
+                let action_request_bytes = super::log::ActionRequest {
+                    method: Some(request.into_inner().into()),
+                }
+                .try_into()
+                .context("while deserializing ActionRequest")
+                .map_err(into_internal)?;
+
+                let response = self
+                    .handle_action(action_request_bytes, metadata)
+                    .await
+                    .context("while calling handle_action")
+                    .map_err(into_internal)?;
+
+                let response = super::log::ActionResponse::try_from(response)
+                    .context("while parsing action_response")
+                    .map_err(into_internal)?;
+
+                Ok(tonic::Response::new(
+                    response
+                        .method
+                        .unwrap()
+                        .try_into()
+                        .context("while selecting method")
+                        .map_err(into_internal)?,
+                ))
             }
 
             async fn make_move(
                 &self,
                 request: tonic::Request<MakeMoveRequest>,
             ) -> Result<tonic::Response<MakeMoveResponse>, tonic::Status> {
-                action_body!(self, request)
+                use anyhow::Context;
+                use std::convert::TryFrom;
+                use std::convert::TryInto;
+                let metadata = request.metadata().to_owned();
+
+                let action_request_bytes = super::log::ActionRequest {
+                    method: Some(request.into_inner().into()),
+                }
+                .try_into()
+                .context("while serializing ActionRequest")
+                .map_err(into_internal)?;
+
+                let response = self
+                    .handle_action(action_request_bytes, metadata)
+                    .await
+                    .context("while calling handle_action")
+                    .map_err(into_internal)?;
+
+                let response = super::log::ActionResponse::try_from(response)
+                    .context("while parsing action_response")
+                    .map_err(into_internal)?;
+
+                Ok(tonic::Response::new(
+                    response
+                        .method
+                        .unwrap()
+                        .try_into()
+                        .context("while selecting method")
+                        .map_err(into_internal)?,
+                ))
             }
 
             type GetGameStream = std::pin::Pin<
@@ -239,31 +310,40 @@ pub mod pictophone {
                 &self,
                 request: tonic::Request<GetGameRequest>,
             ) -> Result<tonic::Response<Self::GetGameStream>, tonic::Status> {
+                use anyhow::Context;
                 use futures::StreamExt;
                 use futures::TryStreamExt;
                 use std::convert::TryFrom;
                 use std::convert::TryInto;
                 let metadata = request.metadata().to_owned();
 
-                let versioned =
-                    super::versioned::QueryRequest::from(QueryRequest::from(request.into_inner()));
+                let query_request_bytes = super::log::QueryRequest {
+                    method: Some(request.into_inner().into()),
+                }
+                .try_into()
+                .context("while serializing QueryRequest")
+                .map_err(into_internal)?;
 
                 let stream = self
-                    .handle_query(
-                        versioned.try_into().map_err(|e| {
-                            tonic::Status::internal(format!("Internal error: {:#}", e))
-                        })?,
+                    .handle_query(query_request_bytes,
                         metadata,
                     )
                     .await
-                    .map_err(|e| tonic::Status::internal(format!("Internal error: {:#}", e)))?
+                    .map_err(into_internal)?
                     .map(|response| -> Result<GetGameResponse, anyhow::Error> {
-                        Ok(
-                            QueryResponse::try_from(super::versioned::QueryResponse::try_from(
-                                response?,
-                            )?)?
-                            .try_into()?,
-                        )
+
+                        let response = super::log::QueryResponse::try_from(response?)
+                        .context("while parsing query_response")
+                        .map_err(into_internal)?;
+
+    
+                    Ok(
+                        response
+                            .method
+                            .unwrap()
+                            .try_into()
+                            .context("while selecting method")
+                            .map_err(into_internal)?,)
                     })
                     .map_err(|e| tonic::Status::internal(format!("Internal error: {:#}", e)));
 

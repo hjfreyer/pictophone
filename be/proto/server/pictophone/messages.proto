@@ -1,42 +1,6 @@
 syntax = "proto3";
 
-package pictophone.v0_1;
-
-service Pictophone {
-    rpc JoinGame(JoinGameRequest) returns (JoinGameResponse);
-    rpc StartGame(StartGameRequest) returns (StartGameResponse);
-    rpc MakeMove(MakeMoveRequest) returns (MakeMoveResponse);
-    
-    rpc GetGame(GetGameRequest) returns (stream GetGameResponse);
-}
-
-message ActionRequest {
-    oneof method {
-        JoinGameRequest join_game_request = 1;
-        StartGameRequest start_game_request = 2;
-        MakeMoveRequest make_move_request = 3;
-    }
-}
-
-message ActionResponse {
-    oneof method {
-        JoinGameResponse join_game_response = 1;
-        StartGameResponse start_game_response = 2;
-        MakeMoveResponse make_move_response = 3;
-    }
-}
-
-message QueryRequest {
-    oneof method {
-        GetGameRequest get_game_request = 1;
-    }
-}
-
-message QueryResponse {
-    oneof method {
-        GetGameResponse get_game_response = 1;
-    }
-}
+package pictophone.messages;
 
 message JoinGameRequest {
     string game_id = 1;
@@ -127,4 +91,3 @@ message PlayerNotInGameError {}
 message MoveAbortedError {}
 
 message EmptyHandError {}
-

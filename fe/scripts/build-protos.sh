@@ -8,7 +8,7 @@ OUT_DIR=src/gen
 PROTO_DIR=../be/proto
 mkdir -p ${OUT_DIR}
 
-protoc -I=$PROTO_DIR $PROTO_DIR/pictophone/v0_1.proto \
+protoc -I=$PROTO_DIR/client $PROTO_DIR/client/pictophone/v0_1.proto \
     --js_out=import_style=commonjs:$OUT_DIR \
     --grpc-web_out=import_style=typescript,mode=grpcwebtext:$OUT_DIR
 

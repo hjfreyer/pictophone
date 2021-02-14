@@ -8,7 +8,6 @@ use {
     crate::proto::dolt::{Request, Response},
     log::info,
     std::{
-        fs,
         sync::{Arc, RwLock},
     },
     wasi_common::virtfs::pipe::{ReadPipe, WritePipe},

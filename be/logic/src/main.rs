@@ -1,28 +1,27 @@
-use anyhow::bail;
 use {
     proto::dolt as dpb,
-    proto::v0_1 as api,
-    proto::versioned as vpb,
+    proto::log as lpb,
+    proto::messages as api,
     serde::{Deserialize, Serialize},
     std::collections::BTreeMap,
 };
 
 mod proto;
 
-macro_rules! oneof_dispatch {
-    ($mod:ident, $container_name:ident.$field:ident, $($case:ident => $handler:expr, )*) => {
-        paste::paste!{
-            match $container_name.$field {
-                $(
-                    Some($mod :: $container_name :: [<$field:camel>] :: $case(request)) => {
-                        $handler(request).map(|response| response.into())
-                    }
-                )*
-                None => unimplemented!("no $case specified"),
-            }
-        }
-    };
-}
+// macro_rules! oneof_dispatch {
+//     ($mod:ident, $container_name:ident.$field:ident, $($case:ident => $handler:expr, )*) => {
+//         paste::paste!{
+//             match $container_name.$field {
+//                 $(
+//                     Some($mod :: $container_name :: [<$field:camel>] :: $case(request)) => {
+//                         $handler(request).map(|response| response.into())
+//                     }
+//                 )*
+//                 None => unimplemented!("no $case specified"),
+//             }
+//         }
+//     };
+// }
 
 #[derive(Debug, Hash, Clone, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 struct GameId(String);
@@ -281,45 +280,47 @@ fn handle_get_game(
 
 fn handle_parsed_action(
     state: Option<State>,
-    request: vpb::ActionRequest,
-) -> anyhow::Result<(Option<State>, vpb::ActionResponse)> {
-    let vpb::action_request::Version::V0p1(action_request) =
-        request.version.expect("no version specified");
-
-    let (new_state, response): (Option<State>, api::action_response::Method) =
-        match action_request.method {
-            Some(api::action_request::Method::JoinGameRequest(request)) => {
-                let (state, response) = handle_join_game(state, request)
-                    .map(|state| (state, Default::default()))
-                    .unwrap_or_else(|error| (None, error.into()));
+    request: lpb::ActionRequest,
+) -> anyhow::Result<(Option<State>, lpb::ActionResponse)> {
+    let (new_state, response): (Option<State>, lpb::action_response::Method) =
+        match request.method.unwrap() {
+            lpb::action_request::Method::JoinGameRequest(request) => {
+                let (state, error) = handle_join_game(state, request)
+                    .map(|state| (state, None))
+                    .unwrap_or_else(|error| (None, Some(error)));
                 (
                     state,
-                    api::action_response::Method::JoinGameResponse(response),
+                    api::JoinGameResponse{
+                        error,
+                    }.into(),
+                    // api::action_response::Method::JoinGameResponse(response),
                 )
             }
-            Some(api::action_request::Method::StartGameRequest(request)) => {
-                let (state, response) = handle_start_game(state, request)
-                    .map(|state| (state, Default::default()))
-                    .unwrap_or_else(|error| (None, error.into()));
+            lpb::action_request::Method::StartGameRequest(request) => {
+                let (state, error) = handle_start_game(state, request)
+                    .map(|state| (state, None))
+                    .unwrap_or_else(|error| (None, Some(error)));
                 (
                     state,
-                    api::action_response::Method::StartGameResponse(response),
+                    api::StartGameResponse{
+                        error,
+                    }.into(),
+                    // api::action_response::Method::StartGameResponse(response),
                 )
             }
-            Some(api::action_request::Method::MakeMoveRequest(request)) => {
-                let (state, response) = handle_make_move(state, request)
-                    .map(|state| (state, Default::default()))
-                    .unwrap_or_else(|error| (None, error.into()));
+            lpb::action_request::Method::MakeMoveRequest(request) => {
+                let (state, error) = handle_make_move(state, request)
+                .map(|state| (state, None))
+                .unwrap_or_else(|error| (None, Some(error)));
                 (
                     state,
-                    api::action_response::Method::MakeMoveResponse(response),
+                    api::MakeMoveResponse {error}.into(),
                 )
             }
-            None => bail!("no method specified"),
         };
     Ok((
         new_state,
-        api::ActionResponse {
+        lpb::ActionResponse {
             method: Some(response),
         }
         .into(),
@@ -328,13 +329,10 @@ fn handle_parsed_action(
 
 fn handle_parsed_query(
     state: Option<State>,
-    request: vpb::QueryRequest,
-) -> anyhow::Result<vpb::QueryResponse> {
-    let vpb::query_request::Version::V0p1(query_request) =
-        request.version.expect("no version specified");
-
-    let response: api::QueryResponse = match query_request.method {
-        Some(api::query_request::Method::GetGameRequest(request)) => {
+    request: lpb::QueryRequest,
+) -> anyhow::Result<lpb::QueryResponse> {
+    let method = match request.method.unwrap() {
+        lpb::query_request::Method::GetGameRequest(request) => {
             handle_get_game(state, request)
                 .map(|game| api::GetGameResponse {
                     game: Some(game),
@@ -345,11 +343,12 @@ fn handle_parsed_query(
                     error: Some(error),
                 })
                 .into()
-        }
-        None => bail!("no method specified"),
+            },
     };
 
-    Ok(response.into())
+    Ok(lpb::QueryResponse{
+        method: Some(method)
+    })
 }
 
 fn handle_action(request: dpb::ActionRequest) -> anyhow::Result<dpb::ActionResponse> {
@@ -359,7 +358,7 @@ fn handle_action(request: dpb::ActionRequest) -> anyhow::Result<dpb::ActionRespo
         .state
         .map(|state| serde_json::from_slice(state.serialized.as_slice()))
         .transpose()?;
-    let action_request = vpb::ActionRequest::decode(request.action.as_slice())?;
+    let action_request = lpb::ActionRequest::decode(request.action.as_slice())?;
 
     let (new_state, response) = handle_parsed_action(state, action_request)?;
 
@@ -384,7 +383,7 @@ fn handle_query(request: dpb::QueryRequest) -> anyhow::Result<dpb::QueryResponse
         .state
         .map(|state| serde_json::from_slice(state.serialized.as_slice()))
         .transpose()?;
-    let query_request = vpb::QueryRequest::decode(request.query.as_slice())?;
+    let query_request = lpb::QueryRequest::decode(request.query.as_slice())?;
 
     let response = handle_parsed_query(state, query_request)?;
 
@@ -404,10 +403,14 @@ fn main() -> Result<(), anyhow::Error> {
 
     let request = dpb::Request::decode(req_buf.as_slice())?;
 
-    let response: dpb::Response = oneof_dispatch!(dpb, request.method,
-        ActionRequest => handle_action,
-        QueryRequest => handle_query,
-    )?;
+    let response_method = match request.method.unwrap() {
+        dpb::request::Method::ActionRequest(request) => handle_action(request)?.into(),
+        dpb::request::Method::QueryRequest(request) => handle_query(request)?.into(),
+    };
+
+    let response =dpb::Response {
+        method: Some(response_method),
+    };
 
     let mut resp_buf = vec![];
     let () = response.encode(&mut resp_buf)?;
