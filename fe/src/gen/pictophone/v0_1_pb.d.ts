@@ -2,6 +2,62 @@ import * as jspb from 'google-protobuf'
 
 
 
+export class CreateGameRequest extends jspb.Message {
+  getGameId(): string;
+  setGameId(value: string): CreateGameRequest;
+
+  getPlayerId(): string;
+  setPlayerId(value: string): CreateGameRequest;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): CreateGameRequest.AsObject;
+  static toObject(includeInstance: boolean, msg: CreateGameRequest): CreateGameRequest.AsObject;
+  static serializeBinaryToWriter(message: CreateGameRequest, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): CreateGameRequest;
+  static deserializeBinaryFromReader(message: CreateGameRequest, reader: jspb.BinaryReader): CreateGameRequest;
+}
+
+export namespace CreateGameRequest {
+  export type AsObject = {
+    gameId: string,
+    playerId: string,
+  }
+}
+
+export class CreateGameResponse extends jspb.Message {
+  getUnknownError(): UnknownError | undefined;
+  setUnknownError(value?: UnknownError): CreateGameResponse;
+  hasUnknownError(): boolean;
+  clearUnknownError(): CreateGameResponse;
+
+  getGameAlreadyExistsError(): GameAlreadyExistsError | undefined;
+  setGameAlreadyExistsError(value?: GameAlreadyExistsError): CreateGameResponse;
+  hasGameAlreadyExistsError(): boolean;
+  clearGameAlreadyExistsError(): CreateGameResponse;
+
+  getErrorCase(): CreateGameResponse.ErrorCase;
+
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): CreateGameResponse.AsObject;
+  static toObject(includeInstance: boolean, msg: CreateGameResponse): CreateGameResponse.AsObject;
+  static serializeBinaryToWriter(message: CreateGameResponse, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): CreateGameResponse;
+  static deserializeBinaryFromReader(message: CreateGameResponse, reader: jspb.BinaryReader): CreateGameResponse;
+}
+
+export namespace CreateGameResponse {
+  export type AsObject = {
+    unknownError?: UnknownError.AsObject,
+    gameAlreadyExistsError?: GameAlreadyExistsError.AsObject,
+  }
+
+  export enum ErrorCase { 
+    ERROR_NOT_SET = 0,
+    UNKNOWN_ERROR = 1,
+    GAME_ALREADY_EXISTS_ERROR = 2,
+  }
+}
+
 export class JoinGameRequest extends jspb.Message {
   getGameId(): string;
   setGameId(value: string): JoinGameRequest;
@@ -30,6 +86,11 @@ export class JoinGameResponse extends jspb.Message {
   hasUnknownError(): boolean;
   clearUnknownError(): JoinGameResponse;
 
+  getGameNotFoundError(): GameNotFoundError | undefined;
+  setGameNotFoundError(value?: GameNotFoundError): JoinGameResponse;
+  hasGameNotFoundError(): boolean;
+  clearGameNotFoundError(): JoinGameResponse;
+
   getGameAlreadyStartedError(): GameAlreadyStartedError | undefined;
   setGameAlreadyStartedError(value?: GameAlreadyStartedError): JoinGameResponse;
   hasGameAlreadyStartedError(): boolean;
@@ -48,13 +109,15 @@ export class JoinGameResponse extends jspb.Message {
 export namespace JoinGameResponse {
   export type AsObject = {
     unknownError?: UnknownError.AsObject,
+    gameNotFoundError?: GameNotFoundError.AsObject,
     gameAlreadyStartedError?: GameAlreadyStartedError.AsObject,
   }
 
   export enum ErrorCase { 
     ERROR_NOT_SET = 0,
     UNKNOWN_ERROR = 1,
-    GAME_ALREADY_STARTED_ERROR = 2,
+    GAME_NOT_FOUND_ERROR = 2,
+    GAME_ALREADY_STARTED_ERROR = 3,
   }
 }
 
@@ -65,8 +128,11 @@ export class StartGameRequest extends jspb.Message {
   getPlayerId(): string;
   setPlayerId(value: string): StartGameRequest;
 
-  getRandomSeed(): number;
-  setRandomSeed(value: number): StartGameRequest;
+  getWindowSize(): number;
+  setWindowSize(value: number): StartGameRequest;
+
+  getLength(): number;
+  setLength(value: number): StartGameRequest;
 
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): StartGameRequest.AsObject;
@@ -80,7 +146,8 @@ export namespace StartGameRequest {
   export type AsObject = {
     gameId: string,
     playerId: string,
-    randomSeed: number,
+    windowSize: number,
+    length: number,
   }
 }
 
@@ -94,6 +161,16 @@ export class StartGameResponse extends jspb.Message {
   setPlayerNotInGameError(value?: PlayerNotInGameError): StartGameResponse;
   hasPlayerNotInGameError(): boolean;
   clearPlayerNotInGameError(): StartGameResponse;
+
+  getInvalidGameParametersError(): InvalidGameParametersError | undefined;
+  setInvalidGameParametersError(value?: InvalidGameParametersError): StartGameResponse;
+  hasInvalidGameParametersError(): boolean;
+  clearInvalidGameParametersError(): StartGameResponse;
+
+  getGameAlreadyStartedError(): GameAlreadyStartedError | undefined;
+  setGameAlreadyStartedError(value?: GameAlreadyStartedError): StartGameResponse;
+  hasGameAlreadyStartedError(): boolean;
+  clearGameAlreadyStartedError(): StartGameResponse;
 
   getErrorCase(): StartGameResponse.ErrorCase;
 
@@ -109,12 +186,16 @@ export namespace StartGameResponse {
   export type AsObject = {
     unknownError?: UnknownError.AsObject,
     playerNotInGameError?: PlayerNotInGameError.AsObject,
+    invalidGameParametersError?: InvalidGameParametersError.AsObject,
+    gameAlreadyStartedError?: GameAlreadyStartedError.AsObject,
   }
 
   export enum ErrorCase { 
     ERROR_NOT_SET = 0,
     UNKNOWN_ERROR = 1,
     PLAYER_NOT_IN_GAME_ERROR = 2,
+    INVALID_GAME_PARAMETERS_ERROR = 3,
+    GAME_ALREADY_STARTED_ERROR = 4,
   }
 }
 
@@ -125,8 +206,8 @@ export class MakeMoveRequest extends jspb.Message {
   getPlayerId(): string;
   setPlayerId(value: string): MakeMoveRequest;
 
-  getEtag(): number;
-  setEtag(value: number): MakeMoveRequest;
+  getSentence(): string;
+  setSentence(value: string): MakeMoveRequest;
 
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): MakeMoveRequest.AsObject;
@@ -140,7 +221,7 @@ export namespace MakeMoveRequest {
   export type AsObject = {
     gameId: string,
     playerId: string,
-    etag: number,
+    sentence: string,
   }
 }
 
@@ -150,25 +231,20 @@ export class MakeMoveResponse extends jspb.Message {
   hasUnknownError(): boolean;
   clearUnknownError(): MakeMoveResponse;
 
-  getMoveAbortedError(): MoveAbortedError | undefined;
-  setMoveAbortedError(value?: MoveAbortedError): MakeMoveResponse;
-  hasMoveAbortedError(): boolean;
-  clearMoveAbortedError(): MakeMoveResponse;
-
-  getPlayerNotInGameError(): PlayerNotInGameError | undefined;
-  setPlayerNotInGameError(value?: PlayerNotInGameError): MakeMoveResponse;
-  hasPlayerNotInGameError(): boolean;
-  clearPlayerNotInGameError(): MakeMoveResponse;
+  getNotYourTurnError(): NotYourTurnError | undefined;
+  setNotYourTurnError(value?: NotYourTurnError): MakeMoveResponse;
+  hasNotYourTurnError(): boolean;
+  clearNotYourTurnError(): MakeMoveResponse;
 
   getGameNotStartedError(): GameNotStartedError | undefined;
   setGameNotStartedError(value?: GameNotStartedError): MakeMoveResponse;
   hasGameNotStartedError(): boolean;
   clearGameNotStartedError(): MakeMoveResponse;
 
-  getEmptyHandError(): EmptyHandError | undefined;
-  setEmptyHandError(value?: EmptyHandError): MakeMoveResponse;
-  hasEmptyHandError(): boolean;
-  clearEmptyHandError(): MakeMoveResponse;
+  getGameAlreadyOverError(): GameAlreadyOverError | undefined;
+  setGameAlreadyOverError(value?: GameAlreadyOverError): MakeMoveResponse;
+  hasGameAlreadyOverError(): boolean;
+  clearGameAlreadyOverError(): MakeMoveResponse;
 
   getErrorCase(): MakeMoveResponse.ErrorCase;
 
@@ -183,19 +259,17 @@ export class MakeMoveResponse extends jspb.Message {
 export namespace MakeMoveResponse {
   export type AsObject = {
     unknownError?: UnknownError.AsObject,
-    moveAbortedError?: MoveAbortedError.AsObject,
-    playerNotInGameError?: PlayerNotInGameError.AsObject,
+    notYourTurnError?: NotYourTurnError.AsObject,
     gameNotStartedError?: GameNotStartedError.AsObject,
-    emptyHandError?: EmptyHandError.AsObject,
+    gameAlreadyOverError?: GameAlreadyOverError.AsObject,
   }
 
   export enum ErrorCase { 
     ERROR_NOT_SET = 0,
     UNKNOWN_ERROR = 1,
-    MOVE_ABORTED_ERROR = 2,
-    PLAYER_NOT_IN_GAME_ERROR = 3,
-    GAME_NOT_STARTED_ERROR = 4,
-    EMPTY_HAND_ERROR = 5,
+    NOT_YOUR_TURN_ERROR = 2,
+    GAME_NOT_STARTED_ERROR = 3,
+    GAME_ALREADY_OVER_ERROR = 4,
   }
 }
 
@@ -272,10 +346,20 @@ export class Game extends jspb.Message {
   hasUnstarted(): boolean;
   clearUnstarted(): Game;
 
-  getStarted(): Game.Started | undefined;
-  setStarted(value?: Game.Started): Game;
-  hasStarted(): boolean;
-  clearStarted(): Game;
+  getYourTurn(): Game.YourTurn | undefined;
+  setYourTurn(value?: Game.YourTurn): Game;
+  hasYourTurn(): boolean;
+  clearYourTurn(): Game;
+
+  getNotYourTurn(): Game.NotYourTurn | undefined;
+  setNotYourTurn(value?: Game.NotYourTurn): Game;
+  hasNotYourTurn(): boolean;
+  clearNotYourTurn(): Game;
+
+  getGameOver(): Game.GameOver | undefined;
+  setGameOver(value?: Game.GameOver): Game;
+  hasGameOver(): boolean;
+  clearGameOver(): Game;
 
   getStateCase(): Game.StateCase;
 
@@ -291,7 +375,9 @@ export namespace Game {
   export type AsObject = {
     playerIdsList: Array<string>,
     unstarted?: Game.Unstarted.AsObject,
-    started?: Game.Started.AsObject,
+    yourTurn?: Game.YourTurn.AsObject,
+    notYourTurn?: Game.NotYourTurn.AsObject,
+    gameOver?: Game.GameOver.AsObject,
   }
 
   export class Unstarted extends jspb.Message {
@@ -309,41 +395,59 @@ export namespace Game {
   }
 
 
-  export class Started extends jspb.Message {
-    getEtag(): number;
-    setEtag(value: number): Started;
-
-    getNumMistakes(): number;
-    setNumMistakes(value: number): Started;
-
-    getRoundNum(): number;
-    setRoundNum(value: number): Started;
-
-    getNumbersPlayedList(): Array<number>;
-    setNumbersPlayedList(value: Array<number>): Started;
-    clearNumbersPlayedList(): Started;
-    addNumbersPlayed(value: number, index?: number): Started;
-
-    getHandList(): Array<number>;
-    setHandList(value: Array<number>): Started;
-    clearHandList(): Started;
-    addHand(value: number, index?: number): Started;
+  export class YourTurn extends jspb.Message {
+    getContextList(): Array<string>;
+    setContextList(value: Array<string>): YourTurn;
+    clearContextList(): YourTurn;
+    addContext(value: string, index?: number): YourTurn;
 
     serializeBinary(): Uint8Array;
-    toObject(includeInstance?: boolean): Started.AsObject;
-    static toObject(includeInstance: boolean, msg: Started): Started.AsObject;
-    static serializeBinaryToWriter(message: Started, writer: jspb.BinaryWriter): void;
-    static deserializeBinary(bytes: Uint8Array): Started;
-    static deserializeBinaryFromReader(message: Started, reader: jspb.BinaryReader): Started;
+    toObject(includeInstance?: boolean): YourTurn.AsObject;
+    static toObject(includeInstance: boolean, msg: YourTurn): YourTurn.AsObject;
+    static serializeBinaryToWriter(message: YourTurn, writer: jspb.BinaryWriter): void;
+    static deserializeBinary(bytes: Uint8Array): YourTurn;
+    static deserializeBinaryFromReader(message: YourTurn, reader: jspb.BinaryReader): YourTurn;
   }
 
-  export namespace Started {
+  export namespace YourTurn {
     export type AsObject = {
-      etag: number,
-      numMistakes: number,
-      roundNum: number,
-      numbersPlayedList: Array<number>,
-      handList: Array<number>,
+      contextList: Array<string>,
+    }
+  }
+
+
+  export class NotYourTurn extends jspb.Message {
+    serializeBinary(): Uint8Array;
+    toObject(includeInstance?: boolean): NotYourTurn.AsObject;
+    static toObject(includeInstance: boolean, msg: NotYourTurn): NotYourTurn.AsObject;
+    static serializeBinaryToWriter(message: NotYourTurn, writer: jspb.BinaryWriter): void;
+    static deserializeBinary(bytes: Uint8Array): NotYourTurn;
+    static deserializeBinaryFromReader(message: NotYourTurn, reader: jspb.BinaryReader): NotYourTurn;
+  }
+
+  export namespace NotYourTurn {
+    export type AsObject = {
+    }
+  }
+
+
+  export class GameOver extends jspb.Message {
+    getSentencesList(): Array<string>;
+    setSentencesList(value: Array<string>): GameOver;
+    clearSentencesList(): GameOver;
+    addSentences(value: string, index?: number): GameOver;
+
+    serializeBinary(): Uint8Array;
+    toObject(includeInstance?: boolean): GameOver.AsObject;
+    static toObject(includeInstance: boolean, msg: GameOver): GameOver.AsObject;
+    static serializeBinaryToWriter(message: GameOver, writer: jspb.BinaryWriter): void;
+    static deserializeBinary(bytes: Uint8Array): GameOver;
+    static deserializeBinaryFromReader(message: GameOver, reader: jspb.BinaryReader): GameOver;
+  }
+
+  export namespace GameOver {
+    export type AsObject = {
+      sentencesList: Array<string>,
     }
   }
 
@@ -351,7 +455,9 @@ export namespace Game {
   export enum StateCase { 
     STATE_NOT_SET = 0,
     UNSTARTED = 2,
-    STARTED = 3,
+    YOUR_TURN = 3,
+    NOT_YOUR_TURN = 4,
+    GAME_OVER = 5,
   }
 }
 
@@ -373,6 +479,48 @@ export namespace UnknownError {
   }
 }
 
+export class GameAlreadyExistsError extends jspb.Message {
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): GameAlreadyExistsError.AsObject;
+  static toObject(includeInstance: boolean, msg: GameAlreadyExistsError): GameAlreadyExistsError.AsObject;
+  static serializeBinaryToWriter(message: GameAlreadyExistsError, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): GameAlreadyExistsError;
+  static deserializeBinaryFromReader(message: GameAlreadyExistsError, reader: jspb.BinaryReader): GameAlreadyExistsError;
+}
+
+export namespace GameAlreadyExistsError {
+  export type AsObject = {
+  }
+}
+
+export class InvalidGameParametersError extends jspb.Message {
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): InvalidGameParametersError.AsObject;
+  static toObject(includeInstance: boolean, msg: InvalidGameParametersError): InvalidGameParametersError.AsObject;
+  static serializeBinaryToWriter(message: InvalidGameParametersError, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): InvalidGameParametersError;
+  static deserializeBinaryFromReader(message: InvalidGameParametersError, reader: jspb.BinaryReader): InvalidGameParametersError;
+}
+
+export namespace InvalidGameParametersError {
+  export type AsObject = {
+  }
+}
+
+export class NotYourTurnError extends jspb.Message {
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): NotYourTurnError.AsObject;
+  static toObject(includeInstance: boolean, msg: NotYourTurnError): NotYourTurnError.AsObject;
+  static serializeBinaryToWriter(message: NotYourTurnError, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): NotYourTurnError;
+  static deserializeBinaryFromReader(message: NotYourTurnError, reader: jspb.BinaryReader): NotYourTurnError;
+}
+
+export namespace NotYourTurnError {
+  export type AsObject = {
+  }
+}
+
 export class GameAlreadyStartedError extends jspb.Message {
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): GameAlreadyStartedError.AsObject;
@@ -387,6 +535,20 @@ export namespace GameAlreadyStartedError {
   }
 }
 
+export class GameAlreadyOverError extends jspb.Message {
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): GameAlreadyOverError.AsObject;
+  static toObject(includeInstance: boolean, msg: GameAlreadyOverError): GameAlreadyOverError.AsObject;
+  static serializeBinaryToWriter(message: GameAlreadyOverError, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): GameAlreadyOverError;
+  static deserializeBinaryFromReader(message: GameAlreadyOverError, reader: jspb.BinaryReader): GameAlreadyOverError;
+}
+
+export namespace GameAlreadyOverError {
+  export type AsObject = {
+  }
+}
+
 export class GameNotStartedError extends jspb.Message {
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): GameNotStartedError.AsObject;
@@ -397,6 +559,20 @@ export class GameNotStartedError extends jspb.Message {
 }
 
 export namespace GameNotStartedError {
+  export type AsObject = {
+  }
+}
+
+export class GameNotFoundError extends jspb.Message {
+  serializeBinary(): Uint8Array;
+  toObject(includeInstance?: boolean): GameNotFoundError.AsObject;
+  static toObject(includeInstance: boolean, msg: GameNotFoundError): GameNotFoundError.AsObject;
+  static serializeBinaryToWriter(message: GameNotFoundError, writer: jspb.BinaryWriter): void;
+  static deserializeBinary(bytes: Uint8Array): GameNotFoundError;
+  static deserializeBinaryFromReader(message: GameNotFoundError, reader: jspb.BinaryReader): GameNotFoundError;
+}
+
+export namespace GameNotFoundError {
   export type AsObject = {
   }
 }

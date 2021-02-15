@@ -35,6 +35,46 @@ export class PictophoneClient {
     this.options_ = options;
   }
 
+  methodInfoCreateGame = new grpcWeb.AbstractClientBase.MethodInfo(
+    pictophone_v0_1_pb.CreateGameResponse,
+    (request: pictophone_v0_1_pb.CreateGameRequest) => {
+      return request.serializeBinary();
+    },
+    pictophone_v0_1_pb.CreateGameResponse.deserializeBinary
+  );
+
+  createGame(
+    request: pictophone_v0_1_pb.CreateGameRequest,
+    metadata: grpcWeb.Metadata | null): Promise<pictophone_v0_1_pb.CreateGameResponse>;
+
+  createGame(
+    request: pictophone_v0_1_pb.CreateGameRequest,
+    metadata: grpcWeb.Metadata | null,
+    callback: (err: grpcWeb.Error,
+               response: pictophone_v0_1_pb.CreateGameResponse) => void): grpcWeb.ClientReadableStream<pictophone_v0_1_pb.CreateGameResponse>;
+
+  createGame(
+    request: pictophone_v0_1_pb.CreateGameRequest,
+    metadata: grpcWeb.Metadata | null,
+    callback?: (err: grpcWeb.Error,
+               response: pictophone_v0_1_pb.CreateGameResponse) => void) {
+    if (callback !== undefined) {
+      return this.client_.rpcCall(
+        this.hostname_ +
+          '/pictophone.v0_1.Pictophone/CreateGame',
+        request,
+        metadata || {},
+        this.methodInfoCreateGame,
+        callback);
+    }
+    return this.client_.unaryCall(
+    this.hostname_ +
+      '/pictophone.v0_1.Pictophone/CreateGame',
+    request,
+    metadata || {},
+    this.methodInfoCreateGame);
+  }
+
   methodInfoJoinGame = new grpcWeb.AbstractClientBase.MethodInfo(
     pictophone_v0_1_pb.JoinGameResponse,
     (request: pictophone_v0_1_pb.JoinGameRequest) => {
