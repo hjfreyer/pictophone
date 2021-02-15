@@ -1,13 +1,13 @@
 
-export type Operator<A,B> = (a: A) => B;
-export type WatchableOperator<A,B> = Operator<Watchable<A>, Watchable<B>>;
+export type Operator<A, B> = (a: A) => B;
+export type WatchableOperator<A, B> = Operator<Watchable<A>, Watchable<B>>;
 
 export interface Watchable<T> {
     value: T,
     next: Promise<Watchable<T>>
 }
 
-export function fromConstant<T>(value: T):Watchable<T> {
+export function fromConstant<T>(value: T): Watchable<T> {
     return {
         value,
         next: Promise.race([]),
@@ -39,7 +39,7 @@ export function fromIterator<T>(iter: AsyncIterator<T>, init: T): Watchable<T> {
         })(),
     }
 }
-export function map<A, B>(fn: (a: A) => B): WatchableOperator<A,B> {
+export function map<A, B>(fn: (a: A) => B): WatchableOperator<A, B> {
     return outer => ({
         value: fn(outer.value),
         next: (async () => {
@@ -49,7 +49,7 @@ export function map<A, B>(fn: (a: A) => B): WatchableOperator<A,B> {
 }
 
 
-export function switchMap<A, B>(fn: (a: A) => Watchable<B>): WatchableOperator<A,B> {
+export function switchMap<A, B>(fn: (a: A) => Watchable<B>): WatchableOperator<A, B> {
     const helper = (outer: Watchable<A>, inner: Watchable<B>): Watchable<B> => ({
         value: inner.value,
         next: (async () => {
@@ -66,7 +66,7 @@ export function switchMap<A, B>(fn: (a: A) => Watchable<B>): WatchableOperator<A
 
         })()
     });
-    return outer=>helper(outer, fn(outer.value));
+    return outer => helper(outer, fn(outer.value));
     // let inner = fn(outer.value);
     // return {
     //     value: inner.value,
@@ -131,3 +131,50 @@ export function switchMap<A, B>(fn: (a: A) => Watchable<B>): WatchableOperator<A
 //         return
 //     };
 // }
+
+export function combine<A, B>(a: Watchable<A>, b: Watchable<B>): Watchable<[A, B]> {
+    const next = Promise.race([
+        a.next.then(a => ({ a })),
+        b.next.then(b => ({ b }))
+    ]);
+
+    return {
+        value: [a.value, b.value],
+        next: next.then(next => 'a' in next ? combine(next.a, b) : combine(a, next.b))
+    }
+}
+
+export function mapFold<Source, Result, Action>(
+    foldFn: (acc: Source, action: Action) => Watchable<Source>,
+    mapFn: (input: Source) => [Result, Promise<Action>]): WatchableOperator<Source, Result> {
+    return function mapFoldImpl(input: Watchable<Source>): Watchable<Result> {
+        const [mapped, nextAction] = mapFn(input.value);
+
+        type NextState = { source: Watchable<Source> } | { action: Action };
+        const nextState: Promise<NextState> = Promise.race([
+            input.next.then((source: Watchable<Source>): NextState => ({ source })),
+            nextAction.then((action: Action): NextState => ({ action })),
+        ]);
+
+        return {
+            value: mapped,
+            next: nextState.then(ns => {
+                if ('source' in ns) {
+                    return mapFoldImpl(ns.source);
+                } else {
+                    return mapFoldImpl(foldFn(input.value, ns.action));
+                }
+            })
+        }
+    };
+}
+
+export function inspect<T>(func: (t:T)=>void): WatchableOperator<T, T> {
+    return function inspectImpl(t : Watchable<T>): Watchable<T> {
+        func(t.value);
+        return {
+            value: t.value,
+            next: t.next.then(inspectImpl)
+        }
+    }
+}
