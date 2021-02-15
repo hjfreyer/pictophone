@@ -35,7 +35,7 @@ static_resources:
                     google_re2: {}
                     regex: ".*"
                 allow_methods: "GET, PUT, DELETE, POST, OPTIONS"
-                allow_headers: "keep-alive,user-agent,cache-control,content-type,content-transfer-encoding,custom-header-1,x-accept-content-transfer-encoding,x-accept-response-streaming,x-user-agent,x-grpc-web"
+                allow_headers: "keep-alive,user-agent,cache-control,content-type,content-transfer-encoding,custom-header-1,x-accept-content-transfer-encoding,x-accept-response-streaming,x-user-agent,x-grpc-web,x-impl"
                 expose_headers: "custom-header-1,grpc-status,grpc-message"
   clusters:
   - name: server|443
