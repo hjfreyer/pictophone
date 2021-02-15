@@ -1,4 +1,3 @@
-
 macro_rules! oneof_enum_convert {
     ($enum_type:ty, $($elem_type:ident, )+) => {
         oneof_enum_convert!($enum_type, $(($elem_type, $elem_type), )+);
@@ -19,22 +18,25 @@ macro_rules! oneof_enum_convert {
 pub mod messages {
     include!(concat!(env!("OUT_DIR"), "/pictophone.messages.rs"));
 
-
     oneof_enum_convert!(
-        join_game_response::Error,
-        GameAlreadyStartedError,
+        create_game_response::Error,
         UnknownError,
+        GameAlreadyExistsError,
     );
 
-    oneof_enum_convert!(start_game_response::Error, UnknownError, PlayerNotInGameError,);
+    oneof_enum_convert!(
+        start_game_response::Error,
+        UnknownError,
+        PlayerNotInGameError,
+        InvalidGameParametersError,
+    );
 
     oneof_enum_convert!(
         make_move_response::Error,
         UnknownError,
-        MoveAbortedError,
-        PlayerNotInGameError,
+        NotYourTurnError,
         GameNotStartedError,
-        EmptyHandError,
+        GameAlreadyOverError,
     );
 
     oneof_enum_convert!(get_game_response::Error, UnknownError, PlayerNotInGameError,);
@@ -51,12 +53,14 @@ pub mod log {
 
     oneof_log_enum_convert!(
         action_request::Method,
+        CreateGameRequest,
         JoinGameRequest,
         StartGameRequest,
         MakeMoveRequest,
     );
     oneof_log_enum_convert!(
         action_response::Method,
+        CreateGameResponse,
         JoinGameResponse,
         StartGameResponse,
         MakeMoveResponse,
@@ -64,7 +68,6 @@ pub mod log {
 
     oneof_log_enum_convert!(query_request::Method, GetGameRequest,);
     oneof_log_enum_convert!(query_response::Method, GetGameResponse,);
-
 }
 
 pub mod dolt {

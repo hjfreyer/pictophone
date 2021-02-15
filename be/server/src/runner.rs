@@ -7,9 +7,7 @@ use log::trace;
 use {
     crate::proto::dolt::{Request, Response},
     log::info,
-    std::{
-        sync::{Arc, RwLock},
-    },
+    std::sync::{Arc, RwLock},
     wasi_common::virtfs::pipe::{ReadPipe, WritePipe},
     wasmtime::{Engine, Linker, Module, Store},
     wasmtime_wasi::{Wasi, WasiCtxBuilder},

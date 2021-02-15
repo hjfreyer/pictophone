@@ -2,6 +2,18 @@ syntax = "proto3";
 
 package pictophone.messages;
 
+message CreateGameRequest {
+    string game_id = 1;
+    string player_id = 2;
+}
+
+message CreateGameResponse {
+    oneof error {
+        UnknownError unknown_error = 1;
+        GameAlreadyExistsError game_already_exists_error = 2;
+    }
+}
+
 message JoinGameRequest {
     string game_id = 1;
     string player_id = 2;
@@ -10,36 +22,40 @@ message JoinGameRequest {
 message JoinGameResponse {
     oneof error {
         UnknownError unknown_error = 1;
-        GameAlreadyStartedError game_already_started_error = 2;
+        GameNotFoundError game_not_found_error = 2;
+        GameAlreadyStartedError game_already_started_error = 3;
     }
 }
 
 message StartGameRequest {
     string game_id = 1;
     string player_id = 2;
-    uint64 random_seed = 3;
+
+    uint32 window_size = 3;
+    uint32 length = 4;
 }
 
 message StartGameResponse {
     oneof error {
         UnknownError unknown_error = 1;
         PlayerNotInGameError player_not_in_game_error = 2;
+        InvalidGameParametersError invalid_game_parameters_error = 3;
+        GameAlreadyStartedError game_already_started_error = 4;
     }
 }
 
 message MakeMoveRequest {
     string game_id = 1;
     string player_id = 2;
-    uint64 etag = 3;
+    string sentence = 3;
 }
 
 message MakeMoveResponse {
     oneof error {
         UnknownError unknown_error = 1;
-        MoveAbortedError move_aborted_error = 2;
-        PlayerNotInGameError player_not_in_game_error = 3;
-        GameNotStartedError game_not_started_error = 4;
-        EmptyHandError empty_hand_error = 5;
+        NotYourTurnError not_your_turn_error = 2;
+        GameNotStartedError game_not_started_error = 3;
+        GameAlreadyOverError game_already_over_error = 4;
     }
 }
 
@@ -61,18 +77,19 @@ message Game {
     repeated string player_ids = 1;
 
     message Unstarted {}
-    message Started {
-        uint64 etag = 1;
-        uint32 num_mistakes = 2;
-
-        uint32 round_num = 3;
-        repeated uint32 numbers_played = 4;
-        repeated uint32 hand = 5;
+    message YourTurn {
+        repeated string context = 1;
+    }
+    message NotYourTurn {}
+    message GameOver {
+        repeated string sentences = 1;
     }
 
     oneof state {
         Unstarted unstarted = 2;
-        Started started = 3;
+        YourTurn your_turn = 3;
+        NotYourTurn not_your_turn = 4;
+        GameOver game_over = 5;
     }
 }
 
@@ -82,9 +99,16 @@ message UnknownError {
     string error = 1;
 }
 
+message GameAlreadyExistsError {}
+message InvalidGameParametersError {}
+message NotYourTurnError {}
+
 message GameAlreadyStartedError {}
+message GameAlreadyOverError {}
 
 message GameNotStartedError {}
+
+message GameNotFoundError {}
 
 message PlayerNotInGameError {}
 

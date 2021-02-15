@@ -133,12 +133,14 @@ pub mod pictophone {
 
         oneof_log_enum_convert!(
             action_request::Method,
+            CreateGameRequest,
             JoinGameRequest,
             StartGameRequest,
             MakeMoveRequest,
         );
         oneof_log_enum_convert!(
             action_response::Method,
+            CreateGameResponse,
             JoinGameResponse,
             StartGameResponse,
             MakeMoveResponse,
@@ -190,6 +192,42 @@ pub mod pictophone {
 
         #[tonic::async_trait]
         impl<T: super::super::dolt::Server> pictophone_server::Pictophone for T {
+            async fn create_game(
+                &self,
+                request: tonic::Request<CreateGameRequest>,
+            ) -> Result<tonic::Response<CreateGameResponse>, tonic::Status> {
+                use anyhow::Context;
+                use std::convert::TryFrom;
+                use std::convert::TryInto;
+                let metadata = request.metadata().to_owned();
+
+                let action_request_bytes = super::log::ActionRequest {
+                    method: Some(request.into_inner().into()),
+                }
+                .try_into()
+                .context("while deserializing ActionRequest")
+                .map_err(into_internal)?;
+
+                let response = self
+                    .handle_action(action_request_bytes, metadata)
+                    .await
+                    .context("while calling handle_action")
+                    .map_err(into_internal)?;
+
+                let response = super::log::ActionResponse::try_from(response)
+                    .context("while parsing action_response")
+                    .map_err(into_internal)?;
+
+                Ok(tonic::Response::new(
+                    response
+                        .method
+                        .unwrap()
+                        .try_into()
+                        .context("while selecting method")
+                        .map_err(into_internal)?,
+                ))
+            }
+
             async fn join_game(
                 &self,
                 request: tonic::Request<JoinGameRequest>,
@@ -325,25 +363,20 @@ pub mod pictophone {
                 .map_err(into_internal)?;
 
                 let stream = self
-                    .handle_query(query_request_bytes,
-                        metadata,
-                    )
+                    .handle_query(query_request_bytes, metadata)
                     .await
                     .map_err(into_internal)?
                     .map(|response| -> Result<GetGameResponse, anyhow::Error> {
-
                         let response = super::log::QueryResponse::try_from(response?)
-                        .context("while parsing query_response")
-                        .map_err(into_internal)?;
+                            .context("while parsing query_response")
+                            .map_err(into_internal)?;
 
-    
-                    Ok(
-                        response
+                        Ok(response
                             .method
                             .unwrap()
                             .try_into()
                             .context("while selecting method")
-                            .map_err(into_internal)?,)
+                            .map_err(into_internal)?)
                     })
                     .map_err(|e| tonic::Status::internal(format!("Internal error: {:#}", e)));
 

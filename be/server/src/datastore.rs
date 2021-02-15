@@ -34,8 +34,7 @@ impl Datastore for Local {
         Ok(self.actions.push(action).await.try_into().unwrap())
     }
 
-    type LogStream =
-        Pin<Box<dyn Stream<Item = anyhow::Result<ActionRequestBytes>> + Send + Sync>>;
+    type LogStream = Pin<Box<dyn Stream<Item = anyhow::Result<ActionRequestBytes>> + Send + Sync>>;
 
     async fn watch_log(&self) -> anyhow::Result<Self::LogStream> {
         todo!()
@@ -58,11 +57,7 @@ pub fn firestore(
 pub struct Firestore {
     handle: FirestoreHandle,
     cache: RwLock<
-        Vec<
-            futures::future::Shared<
-                futures::future::BoxFuture<'static, ActionRequestBytes>,
-            >,
-        >,
+        Vec<futures::future::Shared<futures::future::BoxFuture<'static, ActionRequestBytes>>>,
     >,
 }
 
@@ -185,10 +180,7 @@ impl FirestoreHandle {
 
 impl Firestore {
     // Not found => error
-    async fn fetch_action(
-        self: Arc<Self>,
-        index: u64,
-    ) -> anyhow::Result<ActionRequestBytes> {
+    async fn fetch_action(self: Arc<Self>, index: u64) -> anyhow::Result<ActionRequestBytes> {
         trace!("Fetching action with index {}", index);
         use futures::FutureExt;
         // let x = self.cache.read();
@@ -298,8 +290,7 @@ impl Datastore for Arc<Firestore> {
         }
     }
 
-    type LogStream =
-        Pin<Box<dyn Stream<Item = anyhow::Result<ActionRequestBytes>> + Send + Sync>>;
+    type LogStream = Pin<Box<dyn Stream<Item = anyhow::Result<ActionRequestBytes>> + Send + Sync>>;
 
     async fn watch_log(&self) -> anyhow::Result<Self::LogStream> {
         use futures::TryStreamExt;

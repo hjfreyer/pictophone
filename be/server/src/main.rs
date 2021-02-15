@@ -191,13 +191,8 @@ where
         Ok(last_resp)
     }
 
-    type QueryStream = Pin<
-        Box<
-            dyn Stream<Item = Result<dpb::QueryResponseBytes, anyhow::Error>>
-                + Send
-                + Sync,
-        >,
-    >;
+    type QueryStream =
+        Pin<Box<dyn Stream<Item = Result<dpb::QueryResponseBytes, anyhow::Error>> + Send + Sync>>;
     async fn handle_query(
         &self,
         query: dpb::QueryRequestBytes,

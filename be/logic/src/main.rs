@@ -1,11 +1,10 @@
 use {
-    proto::dolt as dpb,
-    proto::log as lpb,
     proto::messages as api,
     serde::{Deserialize, Serialize},
     std::collections::BTreeMap,
 };
 
+mod handler;
 mod proto;
 
 // macro_rules! oneof_dispatch {
@@ -29,9 +28,6 @@ struct GameId(String);
 #[derive(Debug, Hash, Clone, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 struct PlayerId(String);
 
-#[derive(Debug, Hash, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
-struct Card(u32);
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct State {
     games: BTreeMap<GameId, Game>,
@@ -45,12 +41,10 @@ enum Game {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct StartedGame {
-    random_seed: u64,
-    etag: u64,
-    round_num: usize,
-    num_mistakes: u32,
-    cards_played: Vec<Card>,
-    players: Vec<StartedGamePlayer>,
+    players: Vec<PlayerId>,
+    window_size: u32,
+    length: u32,
+    sentences: Vec<String>,
 }
 
 impl Default for Game {
@@ -59,361 +53,194 @@ impl Default for Game {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct StartedGamePlayer {
-    id: PlayerId,
-    hand: Vec<Card>,
-}
-
 impl Game {
     fn make_move(
         self,
         request: api::MakeMoveRequest,
     ) -> Result<Self, api::make_move_response::Error> {
-        let game = match self {
+        use std::convert::TryInto;
+        let mut game = match self {
             Game::Unstarted { .. } => return Err(api::GameNotStartedError {}.into()),
             Game::Started(game) => game,
         };
 
-        let mut players = game.players;
-        let active_player = players
-            .iter_mut()
-            .find(|p| p.id == PlayerId(request.player_id.clone()))
-            .ok_or_else(|| api::PlayerNotInGameError {})?;
+        if game.length <= game.sentences.len().try_into().unwrap() {
+            return Err(api::GameAlreadyOverError {}.into());
+        }
 
-        if request.etag != game.etag {
-            return Err(api::MoveAbortedError {}.into());
-        };
-
-        let played_card = active_player
-            .hand
-            .pop()
-            .ok_or_else(|| api::EmptyHandError {})?;
-
-        let mistakes_were_made = players
-            .iter()
-            .any(|p| p.hand.iter().any(|card| *card < played_card));
-
-        let new_game = StartedGame {
-            random_seed: game.random_seed,
-            etag: game.etag + 1,
-            round_num: game.round_num,
-            num_mistakes: game.num_mistakes + if mistakes_were_made { 1 } else { 0 },
-            cards_played: {
-                let mut played = game.cards_played;
-                played.push(played_card);
-                played
-            },
-            players,
-        };
-
-        Ok(Game::Started(
-            if new_game.players.iter().all(|p| p.hand.is_empty()) {
-                new_game.advance_round()
-            } else {
-                new_game
-            },
-        ))
-    }
-}
-
-impl StartedGame {
-    fn advance_round(self) -> Self {
-        use rand::seq::SliceRandom;
-        use rand::Rng;
-        use rand::SeedableRng;
-
-        let mut rng = rand::rngs::StdRng::seed_from_u64(self.random_seed);
-
-        let round_num = self.round_num + 1;
-
-        let deck: Vec<Card> = (0..100).map(Card).collect();
-        let num_players = self.players.len();
-
-        let drawn: Vec<Card> = deck
-            .choose_multiple(&mut rng, round_num * num_players)
-            .copied()
-            .collect();
-
-        let players = self
+        let active_player = game
             .players
-            .into_iter()
-            .zip(drawn.chunks(round_num))
-            .map(|(player, hand)| StartedGamePlayer {
-                id: player.id,
-                hand: {
-                    let mut hand = hand.to_vec();
-                    hand.sort();
-                    hand.reverse();
-                    hand
-                },
-            })
-            .collect();
+            .get(game.sentences.len() % game.players.len())
+            .unwrap();
 
-        StartedGame {
-            random_seed: rng.gen(),
-            etag: self.etag,
-            round_num,
-            num_mistakes: self.num_mistakes,
-            cards_played: vec![],
-            players,
+        if active_player != &PlayerId(request.player_id.clone()) {
+            return Err(api::NotYourTurnError {}.into());
         }
+
+        game.sentences.push(request.sentence);
+
+        Ok(Game::Started(game))
     }
 }
 
-fn handle_join_game(
-    state: Option<State>,
-    request: api::JoinGameRequest,
-) -> Result<Option<State>, api::join_game_response::Error> {
-    let player_id = PlayerId(request.player_id);
-    let mut state = state.unwrap_or_default();
-    let game = state
-        .games
-        .entry(GameId(request.game_id.clone()))
-        .or_default();
+struct Impl;
 
-    match game {
-        Game::Started { .. } => Err(api::GameAlreadyStartedError {}.into()),
-        Game::Unstarted { players } if players.contains(&player_id) => Ok(None),
-        Game::Unstarted { players } => {
-            players.push(player_id);
-            Ok(Some(state))
+impl handler::Handler for Impl {
+    type State = State;
+    fn create_game(
+        state: Option<State>,
+        request: api::CreateGameRequest,
+    ) -> Result<Option<State>, api::create_game_response::Error> {
+        use api::create_game_response::Error;
+        let mut state = state.unwrap_or_default();
+
+        if state.games.contains_key(&GameId(request.game_id.clone())) {
+            return Err(Error::GameAlreadyExistsError(Default::default()));
         }
-    }
-}
-
-fn handle_start_game(
-    state: Option<State>,
-    request: api::StartGameRequest,
-) -> Result<Option<State>, api::start_game_response::Error> {
-    let mut state = state.unwrap_or_default();
-    let game = state
-        .games
-        .entry(GameId(request.game_id.clone()))
-        .or_default();
-
-    let players = match game {
-        Game::Started { .. } => return Ok(None),
-        Game::Unstarted { players } => players,
-    };
-
-    if !players.contains(&PlayerId(request.player_id.to_owned())) {
-        return Err(api::PlayerNotInGameError {}.into());
+        state
+            .games
+            .insert(GameId(request.game_id), Default::default());
+        Ok(Some(state))
     }
 
-    let started_game = StartedGame {
-        random_seed: request.random_seed,
-        etag: 0,
-        round_num: 0,
-        num_mistakes: 0,
-        cards_played: vec![],
-        players: players
-            .into_iter()
-            .map(|player_id| StartedGamePlayer {
-                id: player_id.clone(),
-                hand: vec![],
-            })
-            .collect(),
-    };
+    fn join_game(
+        state: Option<State>,
+        request: api::JoinGameRequest,
+    ) -> Result<Option<State>, api::join_game_response::Error> {
+        use api::join_game_response::Error;
+        let mut state = state.unwrap_or_default();
 
-    *game = Game::Started(started_game.advance_round());
+        let game = state
+            .games
+            .get_mut(&GameId(request.game_id))
+            .ok_or_else(|| Error::GameNotFoundError(Default::default()))?;
+        let player_id = PlayerId(request.player_id);
 
-    Ok(Some(state))
-}
-
-fn handle_make_move(
-    state: Option<State>,
-    request: api::MakeMoveRequest,
-) -> Result<Option<State>, api::make_move_response::Error> {
-    let mut state = state.unwrap_or_default();
-    let game = state
-        .games
-        .entry(GameId(request.game_id.clone()))
-        .or_default();
-
-    *game = game.clone().make_move(request)?;
-
-    Ok(Some(state))
-}
-
-fn handle_get_game(
-    state: Option<State>,
-    request: api::GetGameRequest,
-) -> Result<api::Game, api::get_game_response::Error> {
-    let state = state.unwrap_or_default();
-    let game = state
-        .games
-        .get(&GameId(request.game_id.clone()))
-        .cloned()
-        .unwrap_or_default();
-
-    let game = match game {
-        Game::Unstarted { players } => {
-            return if players.contains(&PlayerId(request.player_id.clone())) {
-                Ok(api::Game {
-                    player_ids: players.into_iter().map(|p| p.0).collect(),
-                    state: Some(api::game::State::Unstarted(api::game::Unstarted {})),
-                })
-            } else {
-                Err(api::PlayerNotInGameError {}.into())
+        match game {
+            Game::Started(_) => Err(Error::GameAlreadyStartedError(Default::default())),
+            Game::Unstarted { players } if players.contains(&player_id) => Ok(None),
+            Game::Unstarted { players } => {
+                players.push(player_id);
+                Ok(Some(state))
             }
         }
-        Game::Started(game) => game,
-    };
-    let active_player = game
-        .players
-        .iter()
-        .find(|p| p.id == PlayerId(request.player_id.clone()))
-        .ok_or_else(|| api::PlayerNotInGameError {})?;
+    }
 
-    Ok(api::Game {
-        player_ids: game.players.iter().map(|p| p.id.0.to_owned()).collect(),
-        state: Some(api::game::State::Started(api::game::Started {
-            num_mistakes: game.num_mistakes,
-            round_num: game.round_num as u32,
-            numbers_played: game.cards_played.iter().map(|c| c.0).collect(),
-            hand: active_player.hand.iter().map(|c| c.0).collect(),
-            etag: game.etag,
-        })),
-    })
-}
+    fn start_game(
+        state: Option<State>,
+        request: api::StartGameRequest,
+    ) -> Result<Option<State>, api::start_game_response::Error> {
+        use api::start_game_response::Error;
+        let mut state = state.unwrap_or_default();
+        let game = state
+            .games
+            .entry(GameId(request.game_id.clone()))
+            .or_default();
 
-fn handle_parsed_action(
-    state: Option<State>,
-    request: lpb::ActionRequest,
-) -> anyhow::Result<(Option<State>, lpb::ActionResponse)> {
-    let (new_state, response): (Option<State>, lpb::action_response::Method) =
-        match request.method.unwrap() {
-            lpb::action_request::Method::JoinGameRequest(request) => {
-                let (state, error) = handle_join_game(state, request)
-                    .map(|state| (state, None))
-                    .unwrap_or_else(|error| (None, Some(error)));
-                (
-                    state,
-                    api::JoinGameResponse{
-                        error,
-                    }.into(),
-                    // api::action_response::Method::JoinGameResponse(response),
-                )
-            }
-            lpb::action_request::Method::StartGameRequest(request) => {
-                let (state, error) = handle_start_game(state, request)
-                    .map(|state| (state, None))
-                    .unwrap_or_else(|error| (None, Some(error)));
-                (
-                    state,
-                    api::StartGameResponse{
-                        error,
-                    }.into(),
-                    // api::action_response::Method::StartGameResponse(response),
-                )
-            }
-            lpb::action_request::Method::MakeMoveRequest(request) => {
-                let (state, error) = handle_make_move(state, request)
-                .map(|state| (state, None))
-                .unwrap_or_else(|error| (None, Some(error)));
-                (
-                    state,
-                    api::MakeMoveResponse {error}.into(),
-                )
-            }
+        let players = match game {
+            Game::Started { .. } => return Err(Error::GameAlreadyStartedError(Default::default())),
+            Game::Unstarted { players } => players,
         };
-    Ok((
-        new_state,
-        lpb::ActionResponse {
-            method: Some(response),
+
+        if !players.contains(&PlayerId(request.player_id.to_owned())) {
+            return Err(api::PlayerNotInGameError {}.into());
         }
-        .into(),
-    ))
+
+        let started_game = StartedGame {
+            players: players.clone(),
+            window_size: request.window_size,
+            length: request.length,
+            sentences: vec![],
+        };
+
+        *game = Game::Started(started_game);
+
+        Ok(Some(state))
+    }
+
+    fn make_move(
+        state: Option<State>,
+        request: api::MakeMoveRequest,
+    ) -> Result<Option<State>, api::make_move_response::Error> {
+        let mut state = state.unwrap_or_default();
+        let game = state
+            .games
+            .entry(GameId(request.game_id.clone()))
+            .or_default();
+
+        *game = game.clone().make_move(request)?;
+
+        Ok(Some(state))
+    }
+
+    fn get_game(
+        state: Option<State>,
+        request: api::GetGameRequest,
+    ) -> Result<api::Game, api::get_game_response::Error> {
+        use api::get_game_response::Error;
+        use std::convert::TryInto;
+        let state = state.unwrap_or_default();
+        let game = state
+            .games
+            .get(&GameId(request.game_id.clone()))
+            .cloned()
+            .unwrap_or_default();
+
+        let game = match game {
+            Game::Unstarted { players } => {
+                return if players.contains(&PlayerId(request.player_id.clone())) {
+                    Ok(api::Game {
+                        player_ids: players.into_iter().map(|p| p.0).collect(),
+                        state: Some(api::game::State::Unstarted(api::game::Unstarted {})),
+                    })
+                } else {
+                    Err(api::PlayerNotInGameError {}.into())
+                }
+            }
+            Game::Started(game) => game,
+        };
+
+        let player = PlayerId(request.player_id.clone());
+
+        let active_player = game
+            .players
+            .get(game.sentences.len() % game.players.len())
+            .unwrap();
+
+        if !game.players.contains(&player) {
+            return Err(Error::PlayerNotInGameError(Default::default()));
+        }
+        if active_player != &player {
+            return Ok(api::Game {
+                player_ids: game.players.into_iter().map(|p| p.0).collect(),
+                state: Some(api::game::State::NotYourTurn(Default::default())),
+            });
+        }
+
+        if game.length <= game.sentences.len().try_into().unwrap() {
+            return Ok(api::Game {
+                player_ids: game.players.into_iter().map(|p| p.0).collect(),
+                state: Some(api::game::State::GameOver(api::game::GameOver {
+                    sentences: game.sentences,
+                })),
+            });
+        }
+
+        let start_offset = game
+            .sentences
+            .len()
+            .saturating_sub(game.window_size.try_into().unwrap());
+
+        Ok(api::Game {
+            player_ids: game.players.into_iter().map(|p| p.0).collect(),
+            state: Some(api::game::State::YourTurn(api::game::YourTurn {
+                context: game.sentences[start_offset..].to_vec(),
+            })),
+        })
+    }
 }
 
-fn handle_parsed_query(
-    state: Option<State>,
-    request: lpb::QueryRequest,
-) -> anyhow::Result<lpb::QueryResponse> {
-    let method = match request.method.unwrap() {
-        lpb::query_request::Method::GetGameRequest(request) => {
-            handle_get_game(state, request)
-                .map(|game| api::GetGameResponse {
-                    game: Some(game),
-                    error: None,
-                })
-                .unwrap_or_else(|error| api::GetGameResponse {
-                    game: None,
-                    error: Some(error),
-                })
-                .into()
-            },
-    };
-
-    Ok(lpb::QueryResponse{
-        method: Some(method)
-    })
-}
-
-fn handle_action(request: dpb::ActionRequest) -> anyhow::Result<dpb::ActionResponse> {
-    use prost::Message;
-
-    let state = request
-        .state
-        .map(|state| serde_json::from_slice(state.serialized.as_slice()))
-        .transpose()?;
-    let action_request = lpb::ActionRequest::decode(request.action.as_slice())?;
-
-    let (new_state, response) = handle_parsed_action(state, action_request)?;
-
-    let mut response_buf = vec![];
-    let () = response.encode(&mut response_buf)?;
-    Ok(dpb::ActionResponse {
-        state: new_state
-            .map(|state| -> anyhow::Result<dpb::State> {
-                Ok(dpb::State {
-                    serialized: serde_json::to_vec(&state)?,
-                })
-            })
-            .transpose()?,
-        response: response_buf,
-    })
-}
-
-fn handle_query(request: dpb::QueryRequest) -> anyhow::Result<dpb::QueryResponse> {
-    use prost::Message;
-
-    let state = request
-        .state
-        .map(|state| serde_json::from_slice(state.serialized.as_slice()))
-        .transpose()?;
-    let query_request = lpb::QueryRequest::decode(request.query.as_slice())?;
-
-    let response = handle_parsed_query(state, query_request)?;
-
-    let mut response_buf = vec![];
-    let () = response.encode(&mut response_buf)?;
-    Ok(dpb::QueryResponse {
-        response: response_buf,
-    })
-}
 
 fn main() -> Result<(), anyhow::Error> {
-    use prost::Message;
-    use std::io::{Read, Write};
-
-    let mut req_buf = vec![];
-    let _ = std::io::stdin().read_to_end(&mut req_buf)?;
-
-    let request = dpb::Request::decode(req_buf.as_slice())?;
-
-    let response_method = match request.method.unwrap() {
-        dpb::request::Method::ActionRequest(request) => handle_action(request)?.into(),
-        dpb::request::Method::QueryRequest(request) => handle_query(request)?.into(),
-    };
-
-    let response =dpb::Response {
-        method: Some(response_method),
-    };
-
-    let mut resp_buf = vec![];
-    let () = response.encode(&mut resp_buf)?;
-    let _ = std::io::stdout().lock().write(&resp_buf)?;
-    Ok(())
+    handler::main::<Impl>()
 }

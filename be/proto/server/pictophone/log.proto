@@ -6,17 +6,19 @@ import "pictophone/messages.proto";
 
 message ActionRequest {
     oneof method {
-        pictophone.messages.JoinGameRequest join_game_request = 1;
-        pictophone.messages.StartGameRequest start_game_request = 2;
-        pictophone.messages.MakeMoveRequest make_move_request = 3;
+        pictophone.messages.CreateGameRequest create_game_request = 1;
+        pictophone.messages.JoinGameRequest join_game_request = 2;
+        pictophone.messages.StartGameRequest start_game_request = 3;
+        pictophone.messages.MakeMoveRequest make_move_request = 4;
     }
 }
 
 message ActionResponse {
     oneof method {
-        pictophone.messages.JoinGameResponse join_game_response = 1;
-        pictophone.messages.StartGameResponse start_game_response = 2;
-        pictophone.messages.MakeMoveResponse make_move_response = 3;
+        pictophone.messages.CreateGameResponse create_game_response = 1;
+        pictophone.messages.JoinGameResponse join_game_response = 2;
+        pictophone.messages.StartGameResponse start_game_response = 3;
+        pictophone.messages.MakeMoveResponse make_move_response = 4;
     }
 }
 
