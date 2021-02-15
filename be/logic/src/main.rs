@@ -210,12 +210,6 @@ impl handler::Handler for Impl {
         if !game.players.contains(&player) {
             return Err(Error::PlayerNotInGameError(Default::default()));
         }
-        if active_player != &player {
-            return Ok(api::Game {
-                player_ids: game.players.into_iter().map(|p| p.0).collect(),
-                state: Some(api::game::State::NotYourTurn(Default::default())),
-            });
-        }
 
         if game.length <= game.sentences.len().try_into().unwrap() {
             return Ok(api::Game {
@@ -223,6 +217,13 @@ impl handler::Handler for Impl {
                 state: Some(api::game::State::GameOver(api::game::GameOver {
                     sentences: game.sentences,
                 })),
+            });
+        }
+
+        if active_player != &player {
+            return Ok(api::Game {
+                player_ids: game.players.into_iter().map(|p| p.0).collect(),
+                state: Some(api::game::State::NotYourTurn(Default::default())),
             });
         }
 
