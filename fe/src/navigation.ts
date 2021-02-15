@@ -12,7 +12,6 @@ export interface Homepage {
 export interface Game {
     page: 'game'
     gameId: string,
-    playerId: string,
 }
 
 export interface Unknown {
@@ -45,8 +44,8 @@ export function parseLocation(pathname : string): Location {
     if (segments.length === 2 && segments[1] === '') {
         return {page: 'home'}
     }
-    if (segments.length === 5 && segments[1] === 'games' && segments[3] === 'player') {
-        return {page: 'game', gameId: segments[2], playerId: segments[4]}
+    if (segments.length === 3 && segments[1] === 'games') {
+        return {page: 'game', gameId: segments[2]}
     }
     return {page: 'unknown'}
 }
@@ -56,7 +55,7 @@ export function serializeLocation(location : Location): string {
         case 'home':
             return '/'
         case 'game':
-            return `/games/${location.gameId}/player/${location.playerId}`
+            return `/games/${location.gameId}`
         case 'unknown':
             return '/404'
     }
