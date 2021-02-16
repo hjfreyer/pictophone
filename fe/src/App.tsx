@@ -50,7 +50,8 @@ type Action = {
 } | {
     kind: "start",
 } | {
-    kind: 'play'
+    kind: 'submit'
+    sentence: string
 };
 
 function newState(backend: pb2.PictophoneClient, location: nav.Location, user: Fetch<firebase.UserInfo>): State {
@@ -224,7 +225,7 @@ function fold(backend: pb2.PictophoneClient, state: State, action: Action): Stat
             const req = new pb.CreateGameRequest();
             req.setGameId(action.gameId);
             req.setPlayerId(state.user.uid);
-            backend.createGame(req, null).then(
+            backend.createGame(req).then(
                 resp => console.log("CREATE RESPONSE: ", resp.toObject()));
             return state;
         }
@@ -239,14 +240,14 @@ function fold(backend: pb2.PictophoneClient, state: State, action: Action): Stat
                 resp => console.log("JOIN RESPONSE: ", resp.toObject()));
             return state;
         }
-        case 'play': {
-            if (state.state !== 'SHOW_GAME' || state.game.value === null || state.game.value.state !== 'ready' || !state.game.value.game.game) {
-                throw new Error("invalid state for starting game.")
+        case 'submit': {
+            if (state.state !== 'SHOW_GAME') {
+                throw new Error("invalid state for submitting game.")
             }
             const req = new pb.MakeMoveRequest();
             req.setGameId(state.gameId);
             req.setPlayerId(state.user.uid);
-            // req.setEtag(state.game.value.game.game.started.etag);
+            req.setSentence(action.sentence);
             backend.makeMove(req, null).then(
                 resp => console.log("PLAY RESPONSE: ", resp.toObject()));
             return state;
@@ -258,6 +259,8 @@ function fold(backend: pb2.PictophoneClient, state: State, action: Action): Stat
             const req = new pb.StartGameRequest();
             req.setGameId(state.gameId);
             req.setPlayerId(state.user.uid);
+            req.setWindowSize(2);
+            req.setLength(5);
             backend.startGame(req, null).then(
                 resp => console.log("START RESPONSE: ", resp.toObject()));
             return state;
@@ -347,6 +350,11 @@ interface GameProps {
 }
 
 const Game: React.FC<GameProps> = ({ gameId, playerId, game, dispatch }) => {
+    type Inputs = {
+        sentence: string,
+    };
+    const { register: registerSentence, handleSubmit: handleSentenceSubmit } = useForm<Inputs>();
+
     switch (game.state) {
         case 'disconnected': {
             return <React.Fragment>
@@ -378,6 +386,33 @@ const Game: React.FC<GameProps> = ({ gameId, playerId, game, dispatch }) => {
                         Players: {JSON.stringify(g.playerIdsList)}
                     </pre>
                     <button onClick={() => dispatch({ kind: 'start' })}>Start Game</button>
+                </React.Fragment>
+            } else if (g.notYourTurn) {
+                return <React.Fragment>                <h1>Game {gameId}</h1>
+                    Hang on, it's not your turn.
+                </React.Fragment>
+            } else if (g.yourTurn) {
+                const submitSentence = ({ sentence }: Inputs) => dispatch({ kind: 'submit', sentence });
+
+                return <React.Fragment>                <h1>Game {gameId}</h1>
+                    <p>It's your turn! The story so far ends with:</p>
+                    <p>
+                        {g.yourTurn.contextList.map((sentence, idx) => <span key={idx}>{sentence} </span>)}
+                    </p>
+                    <p>Add one sentence (end with a period):</p>
+                    <form onSubmit={handleSentenceSubmit(submitSentence)}>
+                        <div><textarea name="sentence" required ref={registerSentence} /></div>
+                        <button>Submit</button>
+                    </form>
+
+                </React.Fragment>
+            } else if (g.gameOver) {
+                return <React.Fragment>
+                    <h1>Game {gameId}</h1>
+                    <p>The game is over! Here's the story:</p>
+                    <p>
+                        {g.gameOver.sentencesList.map((sentence, idx) => <span key={idx}>{sentence} </span>)}
+                    </p>
                 </React.Fragment>
             } else {
                 throw new Error("unreachable")
